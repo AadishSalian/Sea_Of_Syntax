@@ -22,7 +22,7 @@ from mocks import ALL_MOCK_ITEMS
 # ---------------------------------------------------------------------------
 # from extractor import process_transcript
 # from jira_notion import create_jira_ticket, update_notion_page
-# from gmail_slack import create_email_draft, ask_clarification
+from gmail_slack import create_email_draft, ask_clarification
 
 def process_transcript(text: str) -> List[ActionItem]:
     """PLACEHOLDER — replace with: from extractor import process_transcript"""
@@ -42,16 +42,7 @@ def update_notion_page(item: ActionItem) -> ExecutionResult:
             "tool": "notion", "error": None, "resolved_owner": None}
 
 
-def create_email_draft(item: ActionItem) -> ExecutionResult:
-    """PLACEHOLDER — replace with: from gmail_slack import create_email_draft"""
-    return {"status": "success", "link": "https://fake.example.com/gmail-draft",
-            "tool": "gmail", "error": None, "resolved_owner": None}
 
-
-def ask_clarification(item: ActionItem) -> ExecutionResult:
-    """PLACEHOLDER — replace with: from gmail_slack import ask_clarification"""
-    return {"status": "success", "link": None, "tool": "slack",
-            "error": None, "resolved_owner": "Alex (Marketing)"}
 
 # ---------------------------------------------------------------------------
 
