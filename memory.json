@@ -1,14 +1,4 @@
 {
-  "Sarah": {
-    "resolved_name": "Sarah_Design",
-    "jira_project": "DESIGN"
-  },
-  "Sarah_Design": {
-    "jira_project": "DESIGN"
-  },
-  "Sarah_Sales": {
-    "jira_project": "SALES"
-  },
   "Amish Sudhakara": {
     "accountId": "712020:979062c8-9986-4407-8a5b-b82877e16918"
   },
