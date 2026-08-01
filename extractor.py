@@ -350,6 +350,8 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
         if ambiguous and memory:
             if owner in memory:
                 ambiguous = False
+                if isinstance(memory[owner], dict) and memory[owner].get("resolved_name"):
+                    owner = memory[owner]["resolved_name"]
             else:
                 for convention_key, convention_val in memory.items():
                     if owner.lower() in convention_key.lower():
@@ -357,6 +359,8 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
                             jira_proj = convention_val.get("jira_project", "").lower()
                             if jira_proj and jira_proj in raw_context.lower():
                                 ambiguous = False
+                                if convention_val.get("resolved_name"):
+                                    owner = convention_val["resolved_name"]
                                 break
 
         # Construct ActionItem matching schemas.py contract (no extra or missing fields)
