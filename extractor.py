@@ -46,13 +46,14 @@ EXTRACTION_SYSTEM_PROMPT = """You are an expert AI assistant that extracts actio
 
 Instructions:
 1. Read the meeting transcript carefully.
-2. Extract every actionable task, assignment, follow-up, decision, or incident report.
-3. Output ONLY a valid JSON array of objects. Do NOT include markdown formatting, code fences (such as ```json), explanations, or extra commentary.
+2. Extract ONLY genuine, actionable tasks, assignments, follow-ups, or decisions directed at someone.
+3. Do NOT extract conversational filler, meeting greetings, introductory remarks, or adjournment announcements (e.g. "Good morning everyone", "Let's go through today's action items", "Meeting adjourned"). Skip filler lines completely.
+4. Output ONLY a valid JSON array of objects. Do NOT include markdown formatting, code fences (such as ```json), explanations, or extra commentary.
 
 For every task, produce an object containing ONLY these 7 fields:
 {
   "task": string,
-  "owner": string,
+  "owner": string or null,
   "tool_type": "jira" | "email" | "notion",
   "confidence": float between 0.0 and 1.0,
   "raw_context": string,
@@ -60,17 +61,23 @@ For every task, produce an object containing ONLY these 7 fields:
   "ambiguous": boolean
 }
 
+Rules for owner:
+- Set owner to the specific person's name if explicitly named (e.g. "Hardik", "Sarah", "Aadish").
+- Set owner to null (not "team") when ambiguous=true or no specific person is named (e.g. "Someone should review...").
+- Only set owner="team" for non-ambiguous team-wide commitments.
+
+Rules for due_hint:
+- due_hint must be the exact time phrase indicating deadline (e.g. "tomorrow", "Friday", "this evening", "end of day", "before Friday").
+- Do NOT include tool names, arbitrary prepositions, or single words like "the" or "email".
+
 Rules for tool_type:
 - "jira": concrete assignable tasks, work items, bug fixes, or server/incident reviews
 - "email": follow-up messages, recaps, client communications, or emails to send
 - "notion": decisions to document, meeting notes, architecture/auth choices to record
 
-Rules for Confidence Scoring:
-- Assign confidence as a float between 0.0 and 1.0 based strictly on task and owner clarity.
-- 0.90 to 0.99: High confidence for straightforward action items where owner, task, and intended action are explicitly stated (e.g. "Neha will prepare slides before Monday").
-- 0.85 to 0.95: High confidence when owner and task are clear, even if a minor detail like due date is omitted (e.g. "Vikram should email client").
-- 0.80 to 0.90: High confidence for clear team decisions or documentation notes (e.g. "Let's document OAuth 2.0 switch").
-- Below 0.70: Reserved strictly for genuinely ambiguous cases (e.g. multiple candidate owners, "which Aman", "someone", unclear responsibility, or conflicting details). Set ambiguous=true ONLY when confidence is below 0.70 or owner cannot be uniquely determined. Do NOT artificially lower confidence for well-defined action items.
+Rules for Confidence & Ambiguity:
+- Set ambiguous=true and confidence < 0.70 ONLY when the owner is unassigned ("Someone"), ambiguous, or unclear.
+- High confidence (0.85-0.95) with ambiguous=false for explicit assignments.
 
 Return ONLY valid JSON."""
 
@@ -200,24 +207,67 @@ def extract_action_items(text: str) -> List[Dict[str, Any]]:
     raise last_error or ValueError("Extraction failed after retries.")
 
 
+def _is_filler_line(line: str) -> bool:
+    """Detects conversational filler, greetings, and adjournment lines."""
+    lower = line.lower().strip()
+    if not lower:
+        return True
+    
+    # Filler phrases to skip
+    if any(p in lower for p in ["good morning", "good afternoon", "meeting adjourned", "action items"]):
+        # Verify line does not contain an actual actionable task verb
+        action_verbs = ["fix", "create", "document", "send", "review", "investigate", "update", "continue"]
+        if not any(v in lower for v in action_verbs):
+            return True
+            
+    return False
+
+
+def _extract_time_phrase(line: str) -> Optional[str]:
+    """Extracts clean time phrases for due_hint, avoiding tool names and arbitrary single words."""
+    lower = line.lower()
+    
+    # Check multi-word time phrases first
+    if "end of the day" in lower or "end of day" in lower:
+        return "end of the day"
+    if "this evening" in lower:
+        return "this evening"
+    if "before tomorrow" in lower or "tomorrow" in lower:
+        return "tomorrow"
+        
+    # Check days of the week with prepositions
+    day_prep_match = re.search(r"\b(?:by|before|on)\s+(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b", line, re.IGNORECASE)
+    if day_prep_match:
+        return day_prep_match.group(1)
+        
+    day_match = re.search(r"\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b", line, re.IGNORECASE)
+    if day_match:
+        return day_match.group(1)
+
+    # Check date formats
+    date_match = re.search(r"\b(\d{1,2}/\d{1,2}/\d{2,4})\b", line)
+    if date_match:
+        return date_match.group(1)
+
+    return None
+
+
 def _fallback_extract(text: str) -> List[Dict[str, Any]]:
     """
     Rule-based extractor fallback used when LLM API keys are missing or network calls fail.
-
-    Confidence Scoring Guidelines:
-    - 0.95: Explicit owner + clear task + due hint
-    - 0.90: Explicit owner + clear task (no due hint)
-    - 0.88: Clear documentation/decision task
-    - 0.40: Genuinely ambiguous owner or unclear responsibility
+    Implements fixes for Bug 1 (skipping filler), Bug 2 (accurate due_hint), and Bug 3 (owner=None for ambiguous).
     """
     items: List[Dict[str, Any]] = []
     lines = [line.strip() for line in text.split("\n") if line.strip()]
 
     for line in lines:
+        # Bug 1 Fix: Skip conversational filler lines
+        if _is_filler_line(line):
+            continue
+
         lower_line = line.lower()
         tool_type = "jira"
-        owner = "team"
-        due_hint: Optional[str] = None
+        owner: Optional[str] = None
 
         # Tool classification
         if any(w in lower_line for w in ["document", "decided", "decision", "note", "switching"]):
@@ -260,14 +310,16 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
             owner = "Alex"
             has_explicit_owner = True
 
-        # Due hint extraction
-        due_match = re.search(r"\b(?:by|before)\s+([A-Za-z]+|\d{1,2}/\d{1,2}/\d{2,4})\b", line, re.IGNORECASE)
-        if due_match:
-            due_hint = due_match.group(1)
+        # Bug 2 Fix: Accurate due_hint time phrase extraction
+        due_hint = _extract_time_phrase(line)
 
-        # Refined Confidence Scoring Logic
-        if "which " in lower_line or "do you mean" in lower_line or "someone" in lower_line or "?" in lower_line:
+        # Ambiguity detection & Bug 3 Fix
+        is_ambiguous = ("which " in lower_line or "do you mean" in lower_line or "someone" in lower_line or "?" in lower_line or not has_explicit_owner)
+
+        if is_ambiguous:
             confidence = 0.40  # Genuinely ambiguous
+            # Bug 3 Fix: When ambiguous=True and no specific person is named, owner MUST be null/None
+            owner = None
         elif has_explicit_owner and due_hint:
             confidence = 0.95  # Explicit owner + task + deadline
         elif has_explicit_owner:
@@ -275,7 +327,7 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
         elif tool_type == "notion":
             confidence = 0.88  # Clear documentation decision
         else:
-            confidence = 0.85  # Unassigned or incident review task
+            confidence = 0.85
 
         task = line.split(":", 1)[1].strip() if ":" in line else line
 
@@ -286,6 +338,7 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
             "confidence": confidence,
             "raw_context": line,
             "due_hint": due_hint,
+            "ambiguous": is_ambiguous
         })
 
     return items
@@ -294,11 +347,6 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
 def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
     """
     Normalizes items and applies ambiguity detection & memory resolution rules.
-
-    Confidence & Ambiguity Rules:
-    - Ambiguous = True ONLY when confidence < 0.70 OR more than one candidate owner exists.
-    - Highly confident items (>= 0.70) with unique owners are deterministic (ambiguous = False).
-    - Memory conventions auto-resolve candidate owner collisions when present in memory.json.
 
     Args:
         items: List of raw extracted action item dictionaries.
@@ -314,10 +362,12 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
         if not isinstance(item, dict):
             continue
 
-        # Safely extract and default required fields
         task = str(item.get("task", "")).strip()
-        owner = str(item.get("owner", "unassigned")).strip()
         raw_context = str(item.get("raw_context", "")).strip()
+
+        # Bug 1 Fix: Filter out filler tasks that slipped through
+        if _is_filler_line(task) or _is_filler_line(raw_context):
+            continue
 
         # Validate tool_type
         tool_type = item.get("tool_type", "jira")
@@ -332,22 +382,39 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
         except (ValueError, TypeError):
             confidence = 0.90
 
-        # Validate due_hint
+        # Bug 2 Fix: Validate due_hint cleaning
         raw_due = item.get("due_hint")
-        due_hint: Optional[str] = str(raw_due) if raw_due is not None and str(raw_due).lower() != "null" else None
+        if raw_due is not None and str(raw_due).lower() not in ["null", "none"]:
+            cleaned_due = str(raw_due).strip()
+            # Clean single arbitrary words like "the" or "email"
+            if cleaned_due.lower() in ["the", "email", "a", "an", "this", "by", "before"]:
+                due_hint = _extract_time_phrase(raw_context)
+            else:
+                due_hint = cleaned_due
+        else:
+            due_hint = None
 
-        # Check candidate owner matches in team roster
-        matching_owners = [name for name in TEAM_ROSTER if owner.lower() in name.lower()]
+        # Owner resolution
+        raw_owner = item.get("owner")
+        if raw_owner is not None and str(raw_owner).lower() not in ["null", "none", "someone", "unassigned"]:
+            owner: Optional[str] = str(raw_owner).strip()
+        else:
+            owner = None
 
-        # Ambiguity threshold rule: ambiguous = True ONLY if confidence < 0.70 or multiple candidates match
+        # Determine ambiguity
         raw_ambiguous = item.get("ambiguous")
         if raw_ambiguous is not None and isinstance(raw_ambiguous, bool):
             ambiguous = raw_ambiguous
         else:
-            ambiguous = (confidence < 0.70) or (len(matching_owners) > 1)
+            ambiguous = (confidence < 0.70) or (owner is None)
+
+        # Bug 3 Fix: If ambiguous=True and owner is generic or not a specific person, set owner=None
+        if ambiguous:
+            if owner is None or owner.lower() in ["someone", "anyone", "team", "unassigned", "somebody"]:
+                owner = None
 
         # Memory convention resolution
-        if ambiguous and memory:
+        if ambiguous and memory and owner:
             if owner in memory:
                 ambiguous = False
             else:
@@ -359,10 +426,10 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
                                 ambiguous = False
                                 break
 
-        # Construct ActionItem matching schemas.py contract (no extra or missing fields)
+        # Construct ActionItem matching schemas.py contract
         action_item: ActionItem = {
             "task": task,
-            "owner": owner,
+            "owner": owner,  # type: ignore (null/None when ambiguous=True with no specific person)
             "tool_type": tool_type,  # type: ignore
             "confidence": confidence,
             "raw_context": raw_context,
