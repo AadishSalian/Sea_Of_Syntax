@@ -18,28 +18,11 @@ from schemas import ActionItem, ExecutionResult
 from mocks import ALL_MOCK_ITEMS
 
 # ---------------------------------------------------------------------------
-# SWAP THESE IMPORTS FOR REAL TEAMMATE FUNCTIONS AS THEY BECOME AVAILABLE
+# REAL TEAMMATE FUNCTIONS WIRED IN PIPELINE
 # ---------------------------------------------------------------------------
-# from extractor import process_transcript
-# from jira_notion import create_jira_ticket, update_notion_page
+from extractor import process_transcript
+from jira_notion import create_jira_ticket, update_notion_page
 from gmail_slack import create_email_draft, ask_clarification
-
-def process_transcript(text: str) -> List[ActionItem]:
-    """PLACEHOLDER — replace with: from extractor import process_transcript"""
-    print("[orchestrator] using MOCK extractor")
-    return ALL_MOCK_ITEMS
-
-
-def create_jira_ticket(item: ActionItem) -> ExecutionResult:
-    """PLACEHOLDER — replace with: from jira_notion import create_jira_ticket"""
-    return {"status": "success", "link": "https://fake.example.com/JIRA-1",
-            "tool": "jira", "error": None, "resolved_owner": None}
-
-
-def update_notion_page(item: ActionItem) -> ExecutionResult:
-    """PLACEHOLDER — replace with: from jira_notion import update_notion_page"""
-    return {"status": "success", "link": "https://fake.example.com/notion-page",
-            "tool": "notion", "error": None, "resolved_owner": None}
 
 
 
