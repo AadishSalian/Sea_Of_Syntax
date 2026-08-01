@@ -89,6 +89,24 @@ def _resolve_assignee(
     return resolved_account_id, target_project_key
 
 
+def _fetch_project_issue_types(
+    project_key: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
+) -> list:
+    """Fetches list of valid issue types for a project from Jira."""
+    try:
+        url = f"{base_url}/rest/api/3/project/{project_key}"
+        if auth:
+            resp = requests.get(url, auth=auth, headers=headers, timeout=10)
+        else:
+            resp = requests.get(url, headers=headers, timeout=10)
+
+        if resp.status_code == 200:
+            return resp.json().get("issueTypes", [])
+    except Exception:
+        pass
+    return []
+
+
 def create_jira_ticket(item: ActionItem) -> ExecutionResult:
     """
     Creates a Jira ticket via REST API v3.
@@ -107,8 +125,6 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         base_url_clean = JIRA_BASE_URL.rstrip("/")
 
         # Jira Cloud REST API v3 Auth setup
-        # Standard auth is HTTP Basic Auth using (JIRA_EMAIL, JIRA_API_TOKEN)
-        # If JIRA_EMAIL is omitted, Bearer token header will be used instead.
         if JIRA_EMAIL:
             auth: Optional[Tuple[str, str]] = (JIRA_EMAIL, JIRA_API_TOKEN or "")
             headers = {"Content-Type": "application/json", "Accept": "application/json"}
@@ -149,21 +165,23 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
             ],
         }
 
+        # Issue type resolution
+        configured_type = (JIRA_ISSUE_TYPE_ID or "").strip()
+        if configured_type:
+            if configured_type.isdigit():
+                issue_type_dict = {"id": configured_type}
+            else:
+                issue_type_dict = {"name": configured_type}
+        else:
+            issue_type_dict = {"name": "Task"}
+
         # Build issue payload
         fields = {
             "project": {"key": project_key},
             "summary": item.get("task", "Untitled Task"),
             "description": description_adf,
+            "issuetype": issue_type_dict,
         }
-
-        # Issue type handling: use ID if numeric, otherwise name
-        if JIRA_ISSUE_TYPE_ID:
-            if JIRA_ISSUE_TYPE_ID.isdigit():
-                fields["issuetype"] = {"id": JIRA_ISSUE_TYPE_ID}
-            else:
-                fields["issuetype"] = {"name": JIRA_ISSUE_TYPE_ID}
-        else:
-            fields["issuetype"] = {"name": "Task"}
 
         # Attach resolved assignee if found; if unresolved, ticket is created unassigned
         if resolved_account_id:
@@ -177,6 +195,18 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
             resp = requests.post(issue_url, json=payload, auth=auth, headers=headers, timeout=10)
         else:
             resp = requests.post(issue_url, json=payload, headers=headers, timeout=10)
+
+        # Retry logic if issue type was invalid for this project
+        if resp.status_code == 400 and "issuetype" in resp.text:
+            valid_types = _fetch_project_issue_types(project_key, base_url_clean, auth, headers)
+            non_subtask = [it for it in valid_types if not it.get("subtask")]
+            if non_subtask:
+                # Try first non-subtask issue type ID
+                payload["fields"]["issuetype"] = {"id": non_subtask[0]["id"]}
+                if auth:
+                    resp = requests.post(issue_url, json=payload, auth=auth, headers=headers, timeout=10)
+                else:
+                    resp = requests.post(issue_url, json=payload, headers=headers, timeout=10)
 
         if resp.status_code not in (200, 201):
             return {
