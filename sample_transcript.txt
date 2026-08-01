@@ -1,5 +1,5 @@
-Neha will prepare the presentation slides before Monday.
-Vikram should email the revised project timeline to the client.
-Let's document that we're switching to OAuth 2.0 authentication.
-The production server returned a 500 Internal Server Error after the latest deployment.
-Can someone review the pull request from Aman? Wait, do you mean Aman from the frontend team or the backend team?
+Priya will finalize the dashboard wireframes by Wednesday.
+Arjun should share the deployment checklist with the DevOps team.
+Let's note that we agreed to migrate the database next sprint.
+The CI/CD pipeline failed during deployment with a "Module not found" error.
+Can someone assign the API testing task to Rahul? Actually, which Rahul — backend or QA?

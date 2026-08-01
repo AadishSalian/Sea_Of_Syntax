@@ -33,7 +33,7 @@ slack_client = WebClient(token=SLACK_BOT_TOKEN)
 # Known names for matching clarification replies — expand as needed
 KNOWN_NAMES = ["Alex (Marketing)", "Alex (Eng)", "Sarah (Design)", "Sarah (Sales)"]
 
-CLARIFICATION_TIMEOUT_SECONDS = 60
+CLARIFICATION_TIMEOUT_SECONDS = 300
 POLL_INTERVAL_SECONDS = 5
 
 _clarification_cache = {}
