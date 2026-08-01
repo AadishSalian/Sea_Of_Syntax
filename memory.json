@@ -1,6 +1,7 @@
 {
   "Amish Sudhakara": {
-    "accountId": "712020:979062c8-9986-4407-8a5b-b82877e16918"
+    "accountId": "712020:979062c8-9986-4407-8a5b-b82877e16918",
+    "email": "amish6478@gmail.com"
   },
   "Aadithya Deepak": {
     "accountId": "712020:96c29696-3c71-40fd-8f4d-fb12deb3263f"
@@ -37,5 +38,15 @@
   },
   "Rahul_QA": {
     "jira_project": "QA"
+  },
+  "Aadish": {
+    "jira_project": "FRONTEND",
+    "email": "salianaadish@gmail.com"
+  },
+  "Hardik Shetty": {
+    "accountId": "712020:8a4a4a5b-5328-4779-891f-d6d66e8811e1"
+  },
+  "Aadish Balakrishna Salian": {
+    "accountId": "712020:70d59553-847b-41d3-8eb8-669c6b8450d2"
   }
 }

@@ -86,6 +86,7 @@ def sync_memory_from_jira():
     for u in assignable_users:
         display_name = u.get("displayName", "").strip()
         account_id = u.get("accountId")
+        email_address = u.get("emailAddress")
         if not display_name or not account_id:
             continue
 
@@ -106,9 +107,14 @@ def sync_memory_from_jira():
             if memory_data[matched_key].get("accountId") != account_id:
                 memory_data[matched_key]["accountId"] = account_id
                 updated_count += 1
+            if email_address and memory_data[matched_key].get("email") != email_address:
+                memory_data[matched_key]["email"] = email_address
+                updated_count += 1
         else:
             # Add new entry
             memory_data[display_name] = {"accountId": account_id}
+            if email_address:
+                memory_data[display_name]["email"] = email_address
             added_count += 1
 
     # Save updated memory.json

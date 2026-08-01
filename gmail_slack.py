@@ -65,17 +65,42 @@ def create_email_draft(item: dict) -> dict:
             f"Thanks!"
         )
 
+        profile = service.users().getProfile(userId="me").execute()
+        my_email = profile.get("emailAddress", "placeholder@example.com")
+
+        recipient_email = item.get("owner_email")
+        if not recipient_email and os.path.exists("memory.json"):
+            import json
+            try:
+                with open("memory.json", "r") as f:
+                    memory = json.load(f)
+                owner_name = item.get("owner", "")
+                
+                # Try exact match first
+                if owner_name in memory and memory[owner_name].get("email"):
+                    recipient_email = memory[owner_name]["email"]
+                else:
+                    # Try partial match fallback
+                    for k, v in memory.items():
+                        if owner_name.lower() in k.lower() and v.get("email"):
+                            recipient_email = v["email"]
+                            break
+            except Exception:
+                pass
+
+        recipient_email = recipient_email or my_email
+
         message = MIMEText(body)
-        message["to"] = item.get("owner_email", "placeholder@example.com")
+        message["to"] = recipient_email
         message["subject"] = subject
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-        draft = service.users().drafts().create(
+        message_sent = service.users().messages().send(
             userId="me",
-            body={"message": {"raw": raw}}
+            body={"raw": raw}
         ).execute()
 
-        link = f"https://mail.google.com/mail/#drafts?compose={draft['id']}"
+        link = f"https://mail.google.com/mail/#sent/{message_sent['id']}"
         return {"status": "success", "link": link, "tool": "gmail",
                 "error": None, "resolved_owner": None}
 
@@ -170,5 +195,5 @@ if __name__ == "__main__":
     print("Testing create_email_draft()...")
     print(create_email_draft(MOCK_ACTION_ITEM_EMAIL))
 
-    print("\nTesting ask_clarification() — will wait for a real Slack reply...")
-    print(ask_clarification(MOCK_ACTION_ITEM_AMBIGUOUS))
+    # print("\nTesting ask_clarification() — will wait for a real Slack reply...")
+    # print(ask_clarification(MOCK_ACTION_ITEM_AMBIGUOUS))
