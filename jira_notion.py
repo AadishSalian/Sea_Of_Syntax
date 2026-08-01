@@ -162,10 +162,59 @@ def _assign_issue_via_put(
         return False
 
 
+def _transition_issue_status(
+    issue_key: str, target_status: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
+) -> Tuple[bool, Optional[str], list]:
+    """
+    Transitions a Jira issue to target_status if a matching transition exists.
+    Returns (success_bool, final_status_name, available_transitions_list).
+    """
+    try:
+        trans_url = f"{base_url}/rest/api/3/issue/{issue_key}/transitions"
+        if auth:
+            resp = requests.get(trans_url, auth=auth, headers=headers, timeout=10)
+        else:
+            resp = requests.get(trans_url, headers=headers, timeout=10)
+
+        if resp.status_code != 200:
+            return False, None, []
+
+        transitions = resp.json().get("transitions", [])
+        avail_list = []
+        matching_id = None
+
+        for t in transitions:
+            t_id = t.get("id")
+            t_name = t.get("name", "")
+            to_name = t.get("to", {}).get("name", "")
+            avail_list.append({"id": t_id, "name": t_name, "to": to_name})
+
+            if (
+                t_name.lower() == target_status.lower()
+                or to_name.lower() == target_status.lower()
+            ):
+                matching_id = t_id
+
+        if matching_id:
+            payload = {"transition": {"id": matching_id}}
+            if auth:
+                t_resp = requests.post(trans_url, json=payload, auth=auth, headers=headers, timeout=10)
+            else:
+                t_resp = requests.post(trans_url, json=payload, headers=headers, timeout=10)
+
+            if t_resp.status_code in (200, 204):
+                return True, target_status, avail_list
+
+        return False, None, avail_list
+    except Exception as e:
+        print(f"[jira_notion] Warning: Status transition failed: {e}")
+        return False, None, []
+
+
 def create_jira_ticket(item: ActionItem) -> ExecutionResult:
     """
     Creates a Jira ticket via REST API v3 and assigns it using dynamic lookup with fallback to default accountId.
-    Assigns via initial POST payload, with automatic PUT fallback if necessary.
+    Optionally transitions status if target_status is specified in item.
     """
     try:
         if not JIRA_BASE_URL:
@@ -205,7 +254,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         )
 
         # Step 3: Build description (raw_context + due_hint if present)
-        description_text = item.get("raw_context", "")
+        description_text = item.get("raw_context", f"Task: {item.get('task')}")
         if item.get("due_hint"):
             description_text += f"\nDue: {item['due_hint']}"
 
@@ -284,6 +333,11 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         # Step 5: Guarantee assignment via follow-up PUT call
         if issue_key:
             _assign_issue_via_put(issue_key, target_assignee_account_id, base_url_clean, auth, headers)
+
+        # Step 6: Handle target_status transition if requested
+        target_status = item.get("target_status")
+        if issue_key and target_status:
+            _transition_issue_status(issue_key, target_status, base_url_clean, auth, headers)
 
         return {
             "status": "success",

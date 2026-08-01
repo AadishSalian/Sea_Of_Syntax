@@ -37,9 +37,9 @@ TEAM_ROSTER = ["Sarah_Design", "Sarah_Sales", "Alex_Marketing", "Alex_Eng", "Rav
 GEMINI_MODEL_NAMES = [
     "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-flash-latest",
     "gemini-1.5-flash-latest",
-    "gemini-1.5-flash"
+    "gemini-1.5-pro-latest",
+    "gemini-1.5-flash-8b",
 ]
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert AI assistant that extracts action items from meeting transcripts.
@@ -229,7 +229,19 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
 
         # Owner detection
         has_explicit_owner = False
-        if "neha" in lower_line:
+        if "hardik" in lower_line:
+            owner = "Hardik"
+            has_explicit_owner = True
+        elif "aadish" in lower_line:
+            owner = "Aadish"
+            has_explicit_owner = True
+        elif "aadithya" in lower_line:
+            owner = "Aadithya"
+            has_explicit_owner = True
+        elif "john" in lower_line:
+            owner = "John"
+            has_explicit_owner = True
+        elif "neha" in lower_line:
             owner = "Neha"
             has_explicit_owner = True
         elif "vikram" in lower_line:

@@ -1,5 +1,19 @@
-Neha will prepare the presentation slides before Monday.
-Vikram should email the revised project timeline to the client.
-Let's document that we're switching to OAuth 2.0 authentication.
-The production server returned a 500 Internal Server Error after the latest deployment.
-Can someone review the pull request from Aman? Wait, do you mean Aman from the frontend team or the backend team?
+Project Manager: Good morning everyone. Let's quickly go through today's action items.
+
+Hardik, please fix the authentication bug before tomorrow and move it to In Progress.
+
+Aadish, create a Jira ticket for the payment gateway issue and assign it to yourself.
+
+Aadithya, document today's meeting notes in Notion before the end of the day.
+
+Sarah, send the deployment schedule to the client by email this evening.
+
+Someone should review the backend API before Friday.
+
+John, continue working on the analytics dashboard.
+
+Hardik, once you're done with authentication, update the API documentation in Notion.
+
+Aadish, investigate the intermittent login timeout issue and create a Jira task for it.
+
+Meeting adjourned.
