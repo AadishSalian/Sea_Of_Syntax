@@ -42,8 +42,8 @@ def _resolve_assignee(
     Enhanced dynamic Jira assignee resolution.
     1. Reads target owner name.
     2. Searches Jira Cloud REST API v3 assignable users endpoint.
-    3. Handles 1 match -> uses accountId.
-    4. Handles multiple matches -> exact displayName filtering; falls back if ambiguous.
+    3. Handles exact or partial displayName/email match.
+    4. Handles multiple matches -> exact displayName filtering.
     5. Handles 0 matches -> falls back to DEFAULT_JIRA_ACCOUNT_ID with a warning.
 
     Returns tuple of (target_accountId, warning_message_or_None).
@@ -60,50 +60,60 @@ def _resolve_assignee(
         else:
             resp = requests.get(search_url, params=params, headers=headers, timeout=10)
 
-            if resp.status_code == 200:
-                users = resp.json()
-                if isinstance(users, list) and len(users) > 0:
-                    # 1. Exact or partial displayName match
+        if resp.status_code == 200:
+            users = resp.json()
+            if isinstance(users, list) and len(users) > 0:
+                resolved_account_id = None
+                
+                # 1. First attempt: exact or partial displayName / email match
+                for u in users:
+                    disp_name = (u.get("displayName") or "").strip().lower()
+                    email_addr = (u.get("emailAddress") or "").strip().lower()
+                    target = owner_name.strip().lower()
+                    
+                    # Try exact match first
+                    if target == disp_name or target == email_addr:
+                        resolved_account_id = u.get("accountId")
+                        break
+                        
+                # 2. Second attempt: substring match
+                if not resolved_account_id:
                     for u in users:
                         disp_name = (u.get("displayName") or "").lower()
                         email_addr = (u.get("emailAddress") or "").lower()
-                        if owner.lower() in disp_name or owner.lower() in email_addr:
+                        target = owner_name.lower()
+                        if target in disp_name or target in email_addr:
                             resolved_account_id = u.get("accountId")
                             break
-                    # 2. Fallback to first returned assignable project user if no explicit name match
-                    if not resolved_account_id and len(users) == 1:
-                        resolved_account_id = users[0].get("accountId")
-        except Exception as e:
-            print(f"[jira_notion] Warning: Jira assignable user search failed: {e}")
-
-                # Scenario B: Multiple users found — attempt exact case-insensitive displayName match
-                elif len(users) > 1:
-                    exact_matches = [
-                        u for u in users
-                        if u.get("displayName", "").strip().lower() == owner_name.strip().lower()
-                    ]
-                    if len(exact_matches) == 1:
-                        account_id = exact_matches[0].get("accountId")
-                        if account_id:
-                            return account_id, None
-
+                            
+                # 3. Third attempt: if exactly 1 user was returned, just use it
+                if not resolved_account_id and len(users) == 1:
+                    resolved_account_id = users[0].get("accountId")
+                    
+                if resolved_account_id:
+                    return resolved_account_id, None
+                    
+                # 4. If we had multiple users but couldn't resolve unambiguously
+                if len(users) > 1:
                     warning = (
                         f"Multiple assignable users found for '{owner_name}' without a unique exact display name match. "
                         f"Falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID} to prevent wrong assignment."
                     )
                     print(f"[jira_notion] Warning: {warning}")
                     return DEFAULT_JIRA_ACCOUNT_ID, warning
+                    
+            # 5. 0 users found
+            warning = (
+                f"No assignable Jira user found matching '{owner_name}'. "
+                f"Falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID}."
+            )
+            print(f"[jira_notion] Warning: {warning}")
+            return DEFAULT_JIRA_ACCOUNT_ID, warning
 
-                # Scenario C: 0 users found
-                else:
-                    warning = (
-                        f"No assignable Jira user found matching '{owner_name}'. "
-                        f"Falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID}."
-                    )
-                    print(f"[jira_notion] Warning: {warning}")
-                    return DEFAULT_JIRA_ACCOUNT_ID, warning
     except Exception as e:
-        print(f"[jira_notion] Warning: Assignee search failed: {e}")
+        warning = f"Jira assignable user search failed: {e}. Falling back to default assignee."
+        print(f"[jira_notion] Warning: {warning}")
+        return DEFAULT_JIRA_ACCOUNT_ID, warning
 
     # Fallback to memory.json lookup if API search encountered issues
     if os.path.exists("memory.json"):
