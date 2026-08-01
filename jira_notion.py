@@ -29,6 +29,11 @@ JIRA_ISSUE_TYPE_ID = os.getenv("JIRA_ISSUE_TYPE_ID")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_PAGE_ID = os.getenv("NOTION_PAGE_ID")
 
+# Admin / Default Jira accountId fallback for ticket assignment
+DEFAULT_JIRA_ACCOUNT_ID = os.getenv(
+    "JIRA_ASSIGNEE_ACCOUNT_ID", "712020:979062c8-9986-4407-8a5b-b82877e16918"
+)
+
 
 def _resolve_assignee(
     owner: str, project_key: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
@@ -107,10 +112,30 @@ def _fetch_project_issue_types(
     return []
 
 
+def _assign_issue_via_put(
+    issue_key: str, account_id: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
+) -> bool:
+    """
+    Performs a follow-up PUT request to set the assignee of an issue if creation assignment failed or was omitted.
+    Endpoint: PUT /rest/api/3/issue/{issueIdOrKey}/assignee
+    """
+    try:
+        url = f"{base_url}/rest/api/3/issue/{issue_key}/assignee"
+        payload = {"accountId": account_id}
+        if auth:
+            resp = requests.put(url, json=payload, auth=auth, headers=headers, timeout=10)
+        else:
+            resp = requests.put(url, json=payload, headers=headers, timeout=10)
+        return resp.status_code in (200, 204)
+    except Exception as e:
+        print(f"[jira_notion] Warning: Follow-up PUT assignment failed for {issue_key}: {e}")
+        return False
+
+
 def create_jira_ticket(item: ActionItem) -> ExecutionResult:
     """
-    Creates a Jira ticket via REST API v3.
-    Applies dynamic assignee resolution and handles failures gracefully without crashing.
+    Creates a Jira ticket via REST API v3 and automatically assigns it to the designated Jira account.
+    Assigns via initial POST payload, with automatic PUT fallback if necessary.
     """
     try:
         if not JIRA_BASE_URL:
@@ -139,7 +164,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         owner_name = item.get("owner", "")
         default_project = JIRA_PROJECT_KEY or ""
 
-        # Step 1: Assignee resolution
+        # Step 1: Assignee resolution (dynamic lookup -> fallback to DEFAULT_JIRA_ACCOUNT_ID)
         resolved_account_id, project_key = _resolve_assignee(
             owner=owner_name,
             project_key=default_project,
@@ -147,6 +172,9 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
             auth=auth,
             headers=headers,
         )
+
+        # Guarantee assignment: if dynamic lookup didn't yield an accountId, use DEFAULT_JIRA_ACCOUNT_ID
+        target_assignee_account_id = resolved_account_id or DEFAULT_JIRA_ACCOUNT_ID
 
         # Step 2: Build description (raw_context + due_hint if present)
         description_text = item.get("raw_context", "")
@@ -175,17 +203,14 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         else:
             issue_type_dict = {"name": "Task"}
 
-        # Build issue payload
+        # Build issue payload including assignee during creation
         fields = {
             "project": {"key": project_key},
             "summary": item.get("task", "Untitled Task"),
             "description": description_adf,
             "issuetype": issue_type_dict,
+            "assignee": {"accountId": target_assignee_account_id},
         }
-
-        # Attach resolved assignee if found; if unresolved, ticket is created unassigned
-        if resolved_account_id:
-            fields["assignee"] = {"accountId": resolved_account_id}
 
         payload = {"fields": fields}
 
@@ -201,12 +226,19 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
             valid_types = _fetch_project_issue_types(project_key, base_url_clean, auth, headers)
             non_subtask = [it for it in valid_types if not it.get("subtask")]
             if non_subtask:
-                # Try first non-subtask issue type ID
                 payload["fields"]["issuetype"] = {"id": non_subtask[0]["id"]}
                 if auth:
                     resp = requests.post(issue_url, json=payload, auth=auth, headers=headers, timeout=10)
                 else:
                     resp = requests.post(issue_url, json=payload, headers=headers, timeout=10)
+
+        # If initial POST fails because assignee field is restricted on create screen, retry without assignee in POST
+        if resp.status_code == 400 and "assignee" in resp.text:
+            del payload["fields"]["assignee"]
+            if auth:
+                resp = requests.post(issue_url, json=payload, auth=auth, headers=headers, timeout=10)
+            else:
+                resp = requests.post(issue_url, json=payload, headers=headers, timeout=10)
 
         if resp.status_code not in (200, 201):
             return {
@@ -221,12 +253,17 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         issue_key = resp_data.get("key")
         ticket_link = f"{base_url_clean}/browse/{issue_key}"
 
+        # Step 4: Guarantee assignment via follow-up PUT if assignee wasn't included in POST response
+        # or if initial creation didn't set assignee
+        if issue_key:
+            _assign_issue_via_put(issue_key, target_assignee_account_id, base_url_clean, auth, headers)
+
         return {
             "status": "success",
             "link": ticket_link,
             "tool": "jira",
             "error": None,
-            "resolved_owner": resolved_account_id,
+            "resolved_owner": target_assignee_account_id,
         }
     except Exception as e:
         return {
