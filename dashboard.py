@@ -306,79 +306,107 @@ if page == "⚡ Command Center":
     # Live Animated AI Pipeline Nodes
     pipeline_done = st.session_state["pipeline_results"] is not None
     st.markdown(f"""
-    <div class="pipeline-container">
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else 'pipeline-node-active'}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else 'node-dot-active'}"></div>
-            <span>Ingest</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Extract</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Classify</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Confidence</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Memory Lookup</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Tool Routing</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Execute</span>
-        </div>
-        <span style="color: #475569;">➔</span>
-        <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
-            <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
-            <span>Completed</span>
-        </div>
+<div class="pipeline-container">
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else 'pipeline-node-active'}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else 'node-dot-active'}"></div>
+        <span>Ingest</span>
     </div>
-    """, unsafe_allow_html=True)
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Extract</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Classify</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Confidence</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Memory Lookup</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Tool Routing</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Execute</span>
+    </div>
+    <span style="color: #475569;">➔</span>
+    <div class="pipeline-node {'pipeline-node-done' if pipeline_done else ''}">
+        <div class="node-dot {'node-dot-done' if pipeline_done else ''}"></div>
+        <span>Completed</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
     col_main, col_side = st.columns([7, 3])
 
     with col_main:
         st.subheader("1. Ingest Meeting Transcript")
         
-        t_upload, t_paste = st.tabs(["📁 Upload Transcript (.txt / .pdf)", "✍️ Direct Transcript Text"])
+        input_mode = st.radio("Input Method:", ["📋 Paste transcript", "🎙️ Record live"], horizontal=True)
         
-        with t_upload:
-            uploaded_file = st.file_uploader("Upload Meeting Transcript File", type=["txt", "text"])
-            if uploaded_file is not None:
-                try:
-                    file_text = uploaded_file.read().decode("utf-8")
-                    st.session_state["transcript_text"] = file_text
-                    st.success(f"Loaded file `{uploaded_file.name}` ({len(file_text)} chars)")
-                except Exception as e:
-                    st.error(f"Error reading file: {e}")
-                    
-        with t_paste:
-            c1, c2 = st.columns([3, 7])
-            with c1:
-                if st.button("📄 Load sample_transcript.txt"):
-                    if os.path.exists("sample_transcript.txt"):
-                        with open("sample_transcript.txt", "r", encoding="utf-8") as f:
-                            st.session_state["transcript_text"] = f.read()
+        if input_mode == "📋 Paste transcript":
+            t_upload, t_paste = st.tabs(["📁 Upload Transcript (.txt / .pdf)", "✍️ Direct Transcript Text"])
+            
+            with t_upload:
+                uploaded_file = st.file_uploader("Upload Meeting Transcript File", type=["txt", "text"])
+                if uploaded_file is not None:
+                    try:
+                        file_text = uploaded_file.read().decode("utf-8")
+                        st.session_state["transcript_text"] = file_text
+                        st.success(f"Loaded file `{uploaded_file.name}` ({len(file_text)} chars)")
+                    except Exception as e:
+                        st.error(f"Error reading file: {e}")
+                        
+            with t_paste:
+                c1, c2 = st.columns([3, 7])
+                with c1:
+                    if st.button("📄 Load sample_transcript.txt"):
+                        if os.path.exists("sample_transcript.txt"):
+                            with open("sample_transcript.txt", "r", encoding="utf-8") as f:
+                                st.session_state["transcript_text"] = f.read()
+                            st.rerun()
+                            
+                active_text = st.text_area(
+                    "Meeting Transcript Input:",
+                    value=st.session_state["transcript_text"],
+                    height=140
+                )
+                st.session_state["transcript_text"] = active_text
+        else:
+            from audio_input import transcribe_audio_bytes
+            
+            st.info("Uses local faster-whisper to transcribe live audio.")
+            
+            audio_data = st.experimental_audio_input("Live Audio Recording", key="native_audio_recorder")
+            
+            if audio_data is not None:
+                if st.button("✨ Transcribe Recording", type="primary"):
+                    with st.spinner("⏳ Processing transcription... please wait."):
+                        live_text = transcribe_audio_bytes(audio_data.getvalue())
+                        
+                    if live_text:
+                        st.session_state["transcript_text"] = live_text
                         st.rerun()
+                    else:
+                        st.error("Audio transcription failed or no speech detected.")
                         
             active_text = st.text_area(
-                "Meeting Transcript Input:",
+                "Transcribed Text (Edit if needed before running):",
                 value=st.session_state["transcript_text"],
-                height=140
+                height=140,
+                key="audio_text_area"
             )
             st.session_state["transcript_text"] = active_text
 

@@ -18,3 +18,5 @@ slack_sdk==3.33.3
 # Person 4 — Orchestrator + Dashboard
 langgraph==0.2.45
 streamlit==1.39.0
+sounddevice
+faster-whisper
