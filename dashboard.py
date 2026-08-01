@@ -10,8 +10,8 @@ HOUR 6+ : swap STATIC_ITEMS for a live call to orchestrator.run_pipeline().
 
 import streamlit as st
 
-from mocks import ALL_MOCK_ITEMS
-from orchestrator import run_pipeline, summarize
+from orchestrator import stream_pipeline, summarize
+import gmail_slack
 
 st.set_page_config(page_title="MeetingToMotion", page_icon="🧭", layout="wide")
 
@@ -112,23 +112,23 @@ st.caption("✨ Autonomous Cross-Tool Action-Item Executor")
 
 TOOL_ICONS = {"jira": "📋 Jira", "notion": "📓 Notion", "email": "📧 Email", "gmail": "📧 Email", "slack": "💬 Slack"}
 
-def render_action_item_card(item: dict, status: str, link: str = None, error: str = None):
-    """Renders a single action item as a nice card."""
+def render_action_item_card_to_container(container, item: dict, status: str, link: str = None, error: str = None):
+    """Renders a single action item as a nice card inside a specific st.empty container."""
     icon = TOOL_ICONS.get(item["tool_type"], "❓")
     
     # Status formatting
     if status == "done" or status == "success":
-        status_badge = "🟢 **Done**"
+        status_badge = "✅ **Done**"
     elif status == "failed":
-        status_badge = "🔴 **Failed**"
+        status_badge = "❌ **Failed**"
     elif status == "needs clarification" or status == "pending_clarification":
-        status_badge = "🟡 **Needs Clarification**"
+        status_badge = "⚠️ **Needs Clarification**"
     elif status == "in progress":
-        status_badge = "🔵 **In Progress**"
+        status_badge = "🔄 **In Progress**"
     else:
-        status_badge = "⚪ **Pending**"
+        status_badge = "⏳ **Pending**"
 
-    with st.container(border=True):
+    with container.container(border=True):
         col1, col2, col3 = st.columns([4, 2, 2])
         
         with col1:
@@ -144,7 +144,7 @@ def render_action_item_card(item: dict, status: str, link: str = None, error: st
             if link:
                 st.markdown(f"[🔗 View Artifact]({link})")
             if error:
-                st.markdown(f"⚠️ {error}")
+                st.markdown(f"🚨 {error}")
 
 # ---------------------------------------------------------------------------
 # LIVE PIPELINE MODE
@@ -157,47 +157,107 @@ transcript_input = st.text_area(
 )
 
 if st.button("Run MeetingToMotion", type="primary"):
-    with st.spinner("Extracting, routing, and executing action items..."):
-        results = run_pipeline(transcript_input)
-        summary = summarize(results)
+    # Reset states for a genuinely new run
+    st.session_state["pipeline_running"] = True
+    st.session_state["final_results_cache"] = None
+    gmail_slack._clarification_cache.clear()
 
+if st.session_state.get("pipeline_running"):
     st.divider()
-    cols = st.columns(4)
-    cols[0].metric("Action items processed", summary["total_action_items"])
-    cols[1].metric("Tools touched", len(summary["tools_touched"]))
-    cols[2].metric("Clarifications needed", summary["clarifications_needed"])
-    cols[3].metric("Succeeded", summary["succeeded"])
+    
+    # Create placeholders for metrics and cards
+    metrics_placeholder = st.empty()
+    cards_header = st.empty()
+    card_placeholders = []
+    
+    # If we already finished, just use the cached results instead of re-streaming
+    if st.session_state.get("final_results_cache") is not None:
+        final_results = st.session_state["final_results_cache"]
+        
+        cards_header.subheader("Pipeline Results")
+        
+        # We need enough placeholders for the cached results
+        for item in final_results:
+            placeholder = st.empty()
+            card_placeholders.append(placeholder)
+            
+            result = item.get("result")
+            if result:
+                status = result.get("status", "failed")
+            else:
+                status = "in progress"
+                
+            render_action_item_card_to_container(
+                container=placeholder,
+                item=item["item"],
+                status=status,
+                link=result.get("link") if result else None,
+                error=result.get("error") if result else None
+            )
+            
+    else:
+        with st.spinner("Extracting, routing, and executing action items..."):
+            cards_header.subheader("Pipeline Results")
+            
+            # Track final results for the summary
+            final_results = []
+            
+            for event in stream_pipeline(transcript_input):
+                if event["type"] == "extracted":
+                    items = event["items"]
+                    # Initialize placeholders and results tracking for each extracted item
+                    for item in items:
+                        placeholder = st.empty()
+                        card_placeholders.append(placeholder)
+                        
+                        # Initial render as Pending
+                        render_action_item_card_to_container(
+                            container=placeholder,
+                            item=item,
+                            status="Pending"
+                        )
+                        
+                        # Setup default final result struct
+                        final_results.append({
+                            "item": item,
+                            "result": None,
+                            "was_clarified": False
+                        })
+                        
+                elif event["type"] == "update":
+                    idx = event["index"]
+                    state = event["state"]
+                    item = state["item"]
+                    result = state.get("result")
+                    
+                    # Update final result tracking
+                    final_results[idx]["item"] = item
+                    final_results[idx]["result"] = result
+                    final_results[idx]["was_clarified"] = state.get("was_clarified", False)
+                    
+                    # Determine current status based on state
+                    if result:
+                        status = result.get("status", "failed")
+                    else:
+                        status = "in progress"
+                    
+                    render_action_item_card_to_container(
+                        container=card_placeholders[idx],
+                        item=item,
+                        status=status,
+                        link=result.get("link") if result else None,
+                        error=result.get("error") if result else None
+                    )
 
-    st.divider()
-    st.subheader("Pipeline Results")
+            # Save to cache so rerenders don't re-trigger the stream
+            st.session_state["final_results_cache"] = final_results
 
-    for r in results:
-        render_action_item_card(
-            item=r["item"], 
-            status=r["result"]["status"] if r.get("result") else "failed", 
-            link=r["result"].get("link") if r.get("result") else None,
-            error=r["result"].get("error") if r.get("result") else None
-        )
-
-# ---------------------------------------------------------------------------
-# STATIC PREVIEW MODE (TASK 3 REQUIREMENT)
-# ---------------------------------------------------------------------------
-st.divider()
-st.subheader("UI Preview (Static Hardcoded Mock Data)")
-st.info("This is the static list of 4 fake action items to prove the UI shape before real pipeline data exists.")
-
-# We will display the 4 mock items with hardcoded varying statuses to prove the UI shape.
-mock_statuses = [
-    {"status": "done", "link": "https://fake.example.com/JIRA-1"},
-    {"status": "in progress", "link": None},
-    {"status": "done", "link": "https://fake.example.com/notion-page"},
-    {"status": "needs clarification", "link": None}
-]
-
-for idx, item in enumerate(ALL_MOCK_ITEMS):
-    mock_status = mock_statuses[idx % len(mock_statuses)]
-    render_action_item_card(
-        item=item,
-        status=mock_status["status"],
-        link=mock_status["link"]
-    )
+    # Once done (either live or cached), update the summary metrics
+    summary = summarize(final_results)
+    
+    with metrics_placeholder.container():
+        cols = st.columns(4)
+        cols[0].metric("Action items processed", summary["total_action_items"])
+        cols[1].metric("Tools touched", len(summary["tools_touched"]))
+        cols[2].metric("Clarifications needed", summary["clarifications_needed"])
+        cols[3].metric("Succeeded", summary["succeeded"])

@@ -36,6 +36,8 @@ KNOWN_NAMES = ["Alex (Marketing)", "Alex (Eng)", "Sarah (Design)", "Sarah (Sales
 CLARIFICATION_TIMEOUT_SECONDS = 60
 POLL_INTERVAL_SECONDS = 5
 
+_clarification_cache = {}
+
 
 # ---------- GMAIL ----------
 def get_gmail_service():
@@ -99,16 +101,24 @@ def ask_clarification(item: dict) -> dict:
     Posts a clarifying question to Slack, blocks while polling for a reply,
     resolves it against KNOWN_NAMES, and returns one final ExecutionResult.
     """
+    task_key = item.get("task", "")
+    if task_key in _clarification_cache:
+        return _clarification_cache[task_key]
+
     try:
         question = f"Which *{item['owner']}* did you mean for: \"{item['task']}\"?"
         post = slack_client.chat_postMessage(channel=SLACK_CHANNEL_ID, text=question)
         after_ts = post["ts"]
     except SlackApiError as e:
-        return {"status": "failed", "link": None, "tool": "slack",
+        res = {"status": "failed", "link": None, "tool": "slack",
                 "error": str(e), "resolved_owner": None}
+        _clarification_cache[task_key] = res
+        return res
     except Exception as e:
-        return {"status": "failed", "link": None, "tool": "slack",
+        res = {"status": "failed", "link": None, "tool": "slack",
                 "error": str(e), "resolved_owner": None}
+        _clarification_cache[task_key] = res
+        return res
 
     elapsed = 0
     consecutive_errors = 0
@@ -125,25 +135,33 @@ def ask_clarification(item: dict) -> dict:
                 reply_text = replies[0]["text"]
                 resolved = _match_known_name(reply_text)
                 if resolved:
-                    return {"status": "success", "link": None, "tool": "slack",
+                    res = {"status": "success", "link": None, "tool": "slack",
                             "error": None, "resolved_owner": resolved}
+                    _clarification_cache[task_key] = res
+                    return res
                 else:
                     # got a reply but couldn't match it to a known name
-                    return {"status": "failed", "link": None, "tool": "slack",
+                    res = {"status": "failed", "link": None, "tool": "slack",
                             "error": f"unrecognized reply: '{reply_text}'", "resolved_owner": None}
+                    _clarification_cache[task_key] = res
+                    return res
             consecutive_errors = 0
 
         except SlackApiError as e:
             consecutive_errors += 1
             if consecutive_errors >= 3:
-                return {"status": "failed", "link": None, "tool": "slack",
+                res = {"status": "failed", "link": None, "tool": "slack",
                         "error": str(e), "resolved_owner": None}
+                _clarification_cache[task_key] = res
+                return res
 
         time.sleep(POLL_INTERVAL_SECONDS)
         elapsed += POLL_INTERVAL_SECONDS
 
-    return {"status": "failed", "link": None, "tool": "slack",
+    res = {"status": "failed", "link": None, "tool": "slack",
             "error": "timeout waiting for clarification reply", "resolved_owner": None}
+    _clarification_cache[task_key] = res
+    return res
 
 
 if __name__ == "__main__":

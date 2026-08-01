@@ -15,7 +15,6 @@ from typing import List, TypedDict, Optional
 from langgraph.graph import StateGraph, START, END
 
 from schemas import ActionItem, ExecutionResult
-from mocks import ALL_MOCK_ITEMS
 
 # ---------------------------------------------------------------------------
 # REAL TEAMMATE FUNCTIONS WIRED IN PIPELINE
@@ -127,6 +126,25 @@ def run_pipeline(transcript_text: str) -> List[PipelineResult]:
 
     # REPORT is handled by returning results for downstream summary
     return results
+
+
+def stream_pipeline(transcript_text: str):
+    """
+    Generator version of run_pipeline that yields state updates for live UI streaming.
+    """
+    items = process_transcript(transcript_text)
+    
+    yield {"type": "extracted", "items": items}
+    
+    for i, item in enumerate(items):
+        initial_state = {"item": item, "result": None, "was_clarified": False}
+        
+        for current_state in item_graph.stream(initial_state, stream_mode="values"):
+            yield {
+                "type": "update",
+                "index": i,
+                "state": current_state
+            }
 
 
 def summarize(results: List[PipelineResult]) -> dict:
