@@ -80,7 +80,8 @@ def _resolve_assignee(
                     or mem_data.get("jira_account_id")
                     or mem_data.get("account_id")
                 )
-                if mem_data.get("jira_project"):
+                # Only use memory project override if default project key is not set in .env
+                if mem_data.get("jira_project") and not project_key:
                     target_project_key = mem_data["jira_project"]
         except Exception as e:
             print(f"[jira_notion] Warning: memory.json lookup failed: {e}")
