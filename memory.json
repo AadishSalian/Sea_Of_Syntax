@@ -8,5 +8,35 @@
   },
   "Sarah_Sales": {
     "jira_project": "SALES"
+  },
+  "Alex": {
+    "resolved_name": "Alex_Eng",
+    "jira_project": "ENG"
+  },
+  "Alex_Marketing": {
+    "jira_project": "MKT"
+  },
+  "Alex_Eng": {
+    "jira_project": "ENG"
+  },
+  "Aman": {
+    "resolved_name": "Aman_Frontend",
+    "jira_project": "FRONTEND"
+  },
+  "Aman_Frontend": {
+    "jira_project": "FRONTEND"
+  },
+  "Aman_Backend": {
+    "jira_project": "BACKEND"
+  },
+  "Rahul": {
+    "resolved_name": "Rahul_Backend",
+    "jira_project": "BACKEND"
+  },
+  "Rahul_Backend": {
+    "jira_project": "BACKEND"
+  },
+  "Rahul_QA": {
+    "jira_project": "QA"
   }
 }

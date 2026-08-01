@@ -59,9 +59,17 @@ def _resolve_assignee(
 
             if resp.status_code == 200:
                 users = resp.json()
-                # If exactly one match returns, use that user's accountId as assignee
-                if isinstance(users, list) and len(users) == 1:
-                    resolved_account_id = users[0].get("accountId")
+                if isinstance(users, list) and len(users) > 0:
+                    # 1. Exact or partial displayName match
+                    for u in users:
+                        disp_name = (u.get("displayName") or "").lower()
+                        email_addr = (u.get("emailAddress") or "").lower()
+                        if owner.lower() in disp_name or owner.lower() in email_addr:
+                            resolved_account_id = u.get("accountId")
+                            break
+                    # 2. Fallback to first returned assignable project user if no explicit name match
+                    if not resolved_account_id and len(users) == 1:
+                        resolved_account_id = users[0].get("accountId")
         except Exception as e:
             print(f"[jira_notion] Warning: Jira assignable user search failed: {e}")
 

@@ -228,7 +228,7 @@ def _fallback_extract(text: str) -> List[Dict[str, Any]]:
     for line in lines:
         lower_line = line.lower()
         tool_type = "jira"
-        owner = "team"
+        owner = "Hardik"  # Default Manager/Host for team tasks
         due_hint: Optional[str] = None
 
         # Tool classification
@@ -318,6 +318,10 @@ def _apply_ambiguity_rules(items: List[Dict[str, Any]]) -> List[ActionItem]:
         task = str(item.get("task", "")).strip()
         owner = str(item.get("owner", "unassigned")).strip()
         raw_context = str(item.get("raw_context", "")).strip()
+
+        # Manager/Host Rule: Tasks assigned to the whole team/unassigned default to the Manager/Host (Hardik)
+        if owner.lower() in ("team", "whole team", "everyone", "all", "unassigned", "none", "null"):
+            owner = "Hardik"  # Manager / Meeting Host
 
         # Validate tool_type
         tool_type = item.get("tool_type", "jira")
