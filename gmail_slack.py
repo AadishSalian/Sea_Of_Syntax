@@ -17,6 +17,7 @@ import time
 from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
+from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from slack_sdk import WebClient
@@ -46,8 +47,11 @@ def get_gmail_service():
         with open("token.pickle", "rb") as f:
             creds = pickle.load(f)
     if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file("credentials.json", GMAIL_SCOPES)
-        creds = flow.run_local_server(port=0)
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", GMAIL_SCOPES)
+            creds = flow.run_local_server(port=0)
         with open("token.pickle", "wb") as f:
             pickle.dump(creds, f)
     return build("gmail", "v1", credentials=creds)

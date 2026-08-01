@@ -5,7 +5,12 @@ const ActionPanel = ({ onStartProcessing, isProcessing }) => {
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' or 'paste'
   const [pastedText, setPastedText] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -26,6 +31,62 @@ const ActionPanel = ({ onStartProcessing, isProcessing }) => {
     
     if (onStartProcessing) {
       onStartProcessing(transcriptToSend);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+      }
+      setIsRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          setIsTranscribing(true);
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+          
+          try {
+            const res = await fetch("http://localhost:8000/api/transcribe", {
+              method: "POST",
+              body: formData
+            });
+            const data = await res.json();
+            if (data.transcript !== undefined) {
+              if (data.transcript.trim() === "") {
+                alert("The AI couldn't hear any speech. Please try speaking closer to the microphone.");
+              } else {
+                setPastedText(prev => (prev ? prev + "\n\n" + data.transcript : data.transcript));
+                setActiveTab('paste');
+              }
+            } else if (data.error) {
+              alert("Transcription failed: " + data.error);
+            }
+          } catch (e) {
+            console.error("Transcription error:", e);
+            alert("Failed to transcribe audio.");
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        mediaRecorder.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Mic access denied or error:", err);
+        alert("Microphone Error: " + err.message + "\n\nPlease ensure you have a microphone connected and you are accessing this page via localhost or HTTPS.");
+      }
     }
   };
 
@@ -60,8 +121,20 @@ const ActionPanel = ({ onStartProcessing, isProcessing }) => {
             <FileTerminal size={18} />
             Paste Text
           </button>
-          <button className="flex-[0.5] py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 flex items-center justify-center transition-colors">
-            <Mic size={18} />
+          <button 
+            onClick={toggleRecording}
+            disabled={isTranscribing}
+            className={`flex-[0.5] py-3 rounded-xl border flex items-center justify-center transition-colors ${
+              isRecording 
+                ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' 
+                : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+            }`}
+          >
+            {isTranscribing ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Mic size={18} />
+            )}
           </button>
         </div>
 
