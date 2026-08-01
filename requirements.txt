@@ -12,8 +12,13 @@ notion-client==2.2.1
 # Person 3 — Gmail + Slack
 google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
-slack_sdk==3.33.3
+google-auth-oauthlib==0.8.0
+slack-sdk==3.33.1
+pydantic==2.9.2
+python-dotenv==1.0.1
+fastapi
+uvicorn
+sse-starlette
 
 # Person 4 — Orchestrator + Dashboard
 langgraph==0.2.45

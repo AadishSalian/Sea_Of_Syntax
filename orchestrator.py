@@ -12,6 +12,7 @@ HOUR 6+ : swap each placeholder import for the real teammate function as they an
 """
 
 from typing import List, TypedDict, Optional
+import asyncio
 from langgraph.graph import StateGraph, START, END
 
 from schemas import ActionItem, ExecutionResult
@@ -154,6 +155,56 @@ def stream_pipeline(transcript_text: str):
                 "index": i,
                 "state": current_state
             }
+
+
+async def stream_pipeline_async(transcript_text: str):
+    """
+    Async generator version of run_pipeline that processes items in parallel
+    and yields state updates as they happen for live UI streaming via SSE.
+    """
+    # 1. Extraction (run in a thread to prevent blocking the event loop)
+    items = await asyncio.to_thread(process_transcript, transcript_text)
+    
+    yield {"type": "extracted", "items": items}
+    
+    if not items:
+        return
+
+    queue = asyncio.Queue()
+
+    async def process_item_async(index: int, item: ActionItem):
+        try:
+            initial_state = {"item": item, "result": None, "was_clarified": False}
+            # astream will automatically run sync nodes in a threadpool
+            async for current_state in item_graph.astream(initial_state, stream_mode="values"):
+                await queue.put({
+                    "type": "update",
+                    "index": index,
+                    "state": current_state
+                })
+        except Exception as e:
+            await queue.put({
+                "type": "error",
+                "index": index,
+                "error": str(e)
+            })
+
+    # Start all items in parallel
+    tasks = [asyncio.create_task(process_item_async(i, item)) for i, item in enumerate(items)]
+
+    # Sentinel producer task
+    async def wait_all():
+        await asyncio.gather(*tasks)
+        await queue.put(None)  # Sentinel value to end stream
+        
+    asyncio.create_task(wait_all())
+
+    # Consume the queue and yield to client
+    while True:
+        event = await queue.get()
+        if event is None:
+            break
+        yield event
 
 
 def summarize(results: List[PipelineResult]) -> dict:
