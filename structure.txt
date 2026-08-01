@@ -1,0 +1,17 @@
+Sea_Of_Syntax
+├── docs
+│   └── team_roles.md
+├── .env.example
+├── .gitignore
+├── dashboard.py
+├── extractor.py
+├── gmail_slack.py
+├── jira_notion.py
+├── memory.json
+├── mocks.py
+├── orchestrator.py
+├── py.py
+├── README.md
+├── requirements.txt
+├── sample_transcript.txt
+└── schemas.py
