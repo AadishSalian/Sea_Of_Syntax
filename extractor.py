@@ -122,7 +122,25 @@ def _call_llm(transcript_text: str) -> str:
     Returns:
         Raw string output from the LLM.
     """
-    if GEMINI_API_KEY:
+    if GROQ_API_KEY:
+        import requests
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [
+                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Transcript:\n{transcript_text}"}
+            ],
+            "temperature": 0.1
+        }
+        resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"] or "[]"
+
+    elif GEMINI_API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
         
@@ -143,19 +161,6 @@ def _call_llm(transcript_text: str) -> str:
                 continue
                 
         raise last_err or ValueError("All Gemini model generation attempts failed.")
-
-    elif GROQ_API_KEY:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        completion = client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
-            messages=[
-                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Transcript:\n{transcript_text}"}
-            ],
-            temperature=0.1,
-        )
-        return completion.choices[0].message.content or "[]"
     else:
         raise ValueError("Neither GEMINI_API_KEY nor GROQ_API_KEY is configured in environment.")
 
