@@ -1,19 +1,5 @@
-Project Manager: Good morning everyone. Let's quickly go through today's action items.
+Hardik, deploy the payment service hotfix by end of day.
 
-Hardik, please fix the authentication bug before tomorrow and move it to In Progress.
+Aadithya, update the Notion roadmap with this sprint's changes.
 
-Aadish, create a Jira ticket for the payment gateway issue and assign it to yourself.
-
-Aadithya, document today's meeting notes in Notion before the end of the day.
-
-Sarah, send the deployment schedule to the client by email this evening.
-
-Someone should review the backend API before Friday.
-
-John, continue working on the analytics dashboard.
-
-Hardik, once you're done with authentication, update the API documentation in Notion.
-
-Aadish, investigate the intermittent login timeout issue and create a Jira task for it.
-
-Meeting adjourned.
+Aadish, investigate the failing CI pipeline before tomorrow.
