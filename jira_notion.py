@@ -36,62 +36,92 @@ DEFAULT_JIRA_ACCOUNT_ID = os.getenv(
 
 
 def _resolve_assignee(
-    owner: str, project_key: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
-) -> Tuple[Optional[str], str]:
+    owner_name: str, project_key: str, base_url: str, auth: Optional[Tuple[str, str]], headers: dict
+) -> Tuple[str, Optional[str]]:
     """
-    Dynamically resolves Jira accountId for the given owner.
-    1. Queries Jira assignable users endpoint.
-    2. Fallbacks to memory.json if 0 or multiple users matched.
-    Returns tuple of (resolved_accountId_or_None, target_project_key).
+    Enhanced dynamic Jira assignee resolution.
+    1. Reads target owner name.
+    2. Searches Jira Cloud REST API v3 assignable users endpoint.
+    3. Handles 1 match -> uses accountId.
+    4. Handles multiple matches -> exact displayName filtering; falls back if ambiguous.
+    5. Handles 0 matches -> falls back to DEFAULT_JIRA_ACCOUNT_ID with a warning.
+
+    Returns tuple of (target_accountId, warning_message_or_None).
     """
-    resolved_account_id: Optional[str] = None
-    target_project_key = project_key
+    if not owner_name or not base_url or not project_key:
+        warning = f"Missing search parameters for assignee lookup; falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID}."
+        return DEFAULT_JIRA_ACCOUNT_ID, warning
 
-    # 1. Search Jira assignable users endpoint
-    if base_url and owner and target_project_key:
-        try:
-            search_url = f"{base_url}/rest/api/3/user/assignable/search"
-            params = {"project": target_project_key, "query": owner}
-            if auth:
-                resp = requests.get(search_url, params=params, auth=auth, headers=headers, timeout=10)
-            else:
-                resp = requests.get(search_url, params=params, headers=headers, timeout=10)
+    try:
+        search_url = f"{base_url}/rest/api/3/user/assignable/search"
+        params = {"project": project_key, "query": owner_name}
+        if auth:
+            resp = requests.get(search_url, params=params, auth=auth, headers=headers, timeout=10)
+        else:
+            resp = requests.get(search_url, params=params, headers=headers, timeout=10)
 
-            if resp.status_code == 200:
-                users = resp.json()
-                # If exactly one match returns, use that user's accountId as assignee
-                if isinstance(users, list) and len(users) == 1:
-                    resolved_account_id = users[0].get("accountId")
-        except Exception as e:
-            print(f"[jira_notion] Warning: Jira assignable user search failed: {e}")
+        if resp.status_code == 200:
+            users = resp.json()
+            if isinstance(users, list):
+                # Scenario A: Exactly one assignable user found
+                if len(users) == 1:
+                    account_id = users[0].get("accountId")
+                    if account_id:
+                        return account_id, None
 
-    # 2. If 0 or >1 matches (ambiguous), fall back to memory.json
-    if not resolved_account_id and os.path.exists("memory.json"):
+                # Scenario B: Multiple users found — attempt exact case-insensitive displayName match
+                elif len(users) > 1:
+                    exact_matches = [
+                        u for u in users
+                        if u.get("displayName", "").strip().lower() == owner_name.strip().lower()
+                    ]
+                    if len(exact_matches) == 1:
+                        account_id = exact_matches[0].get("accountId")
+                        if account_id:
+                            return account_id, None
+
+                    warning = (
+                        f"Multiple assignable users found for '{owner_name}' without a unique exact display name match. "
+                        f"Falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID} to prevent wrong assignment."
+                    )
+                    print(f"[jira_notion] Warning: {warning}")
+                    return DEFAULT_JIRA_ACCOUNT_ID, warning
+
+                # Scenario C: 0 users found
+                else:
+                    warning = (
+                        f"No assignable Jira user found matching '{owner_name}'. "
+                        f"Falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID}."
+                    )
+                    print(f"[jira_notion] Warning: {warning}")
+                    return DEFAULT_JIRA_ACCOUNT_ID, warning
+    except Exception as e:
+        print(f"[jira_notion] Warning: Assignee search failed: {e}")
+
+    # Fallback to memory.json lookup if API search encountered issues
+    if os.path.exists("memory.json"):
         try:
             with open("memory.json", "r") as f:
                 memory = json.load(f)
-
-            mem_data = memory.get(owner)
+            mem_data = memory.get(owner_name)
             if not mem_data:
-                # Case-insensitive / substring search fallback for memory keys (e.g. Sarah -> Sarah_Design)
                 for k, v in memory.items():
-                    if owner.lower() in k.lower():
+                    if owner_name.lower() in k.lower():
                         mem_data = v
                         break
-
             if isinstance(mem_data, dict):
-                resolved_account_id = (
+                acc_id = (
                     mem_data.get("accountId")
                     or mem_data.get("jira_account_id")
                     or mem_data.get("account_id")
                 )
-                # Only use memory project override if default project key is not set in .env
-                if mem_data.get("jira_project") and not project_key:
-                    target_project_key = mem_data["jira_project"]
+                if acc_id:
+                    return acc_id, None
         except Exception as e:
             print(f"[jira_notion] Warning: memory.json lookup failed: {e}")
 
-    return resolved_account_id, target_project_key
+    warning = f"User '{owner_name}' unresolved; falling back to default assignee {DEFAULT_JIRA_ACCOUNT_ID}."
+    return DEFAULT_JIRA_ACCOUNT_ID, warning
 
 
 def _fetch_project_issue_types(
@@ -134,7 +164,7 @@ def _assign_issue_via_put(
 
 def create_jira_ticket(item: ActionItem) -> ExecutionResult:
     """
-    Creates a Jira ticket via REST API v3 and automatically assigns it to the designated Jira account.
+    Creates a Jira ticket via REST API v3 and assigns it using dynamic lookup with fallback to default accountId.
     Assigns via initial POST payload, with automatic PUT fallback if necessary.
     """
     try:
@@ -161,22 +191,20 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
                 "Authorization": f"Bearer {JIRA_API_TOKEN}",
             }
 
-        owner_name = item.get("owner", "")
+        # Step 1: Extract target owner name (prefer item["owner_resolved"], fallback to item["owner"])
+        target_owner_name = str(item.get("owner_resolved") or item.get("owner", "")).strip()
         default_project = JIRA_PROJECT_KEY or ""
 
-        # Step 1: Assignee resolution (dynamic lookup -> fallback to DEFAULT_JIRA_ACCOUNT_ID)
-        resolved_account_id, project_key = _resolve_assignee(
-            owner=owner_name,
+        # Step 2: Dynamic assignee resolution with default accountId fallback
+        target_assignee_account_id, warning_msg = _resolve_assignee(
+            owner_name=target_owner_name,
             project_key=default_project,
             base_url=base_url_clean,
             auth=auth,
             headers=headers,
         )
 
-        # Guarantee assignment: if dynamic lookup didn't yield an accountId, use DEFAULT_JIRA_ACCOUNT_ID
-        target_assignee_account_id = resolved_account_id or DEFAULT_JIRA_ACCOUNT_ID
-
-        # Step 2: Build description (raw_context + due_hint if present)
+        # Step 3: Build description (raw_context + due_hint if present)
         description_text = item.get("raw_context", "")
         if item.get("due_hint"):
             description_text += f"\nDue: {item['due_hint']}"
@@ -203,9 +231,9 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         else:
             issue_type_dict = {"name": "Task"}
 
-        # Build issue payload including assignee during creation
+        # Build issue payload including resolved assignee during creation
         fields = {
-            "project": {"key": project_key},
+            "project": {"key": default_project},
             "summary": item.get("task", "Untitled Task"),
             "description": description_adf,
             "issuetype": issue_type_dict,
@@ -214,7 +242,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
 
         payload = {"fields": fields}
 
-        # Step 3: POST to {JIRA_BASE_URL}/rest/api/3/issue
+        # Step 4: POST to {JIRA_BASE_URL}/rest/api/3/issue
         issue_url = f"{base_url_clean}/rest/api/3/issue"
         if auth:
             resp = requests.post(issue_url, json=payload, auth=auth, headers=headers, timeout=10)
@@ -223,7 +251,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
 
         # Retry logic if issue type was invalid for this project
         if resp.status_code == 400 and "issuetype" in resp.text:
-            valid_types = _fetch_project_issue_types(project_key, base_url_clean, auth, headers)
+            valid_types = _fetch_project_issue_types(default_project, base_url_clean, auth, headers)
             non_subtask = [it for it in valid_types if not it.get("subtask")]
             if non_subtask:
                 payload["fields"]["issuetype"] = {"id": non_subtask[0]["id"]}
@@ -232,7 +260,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
                 else:
                     resp = requests.post(issue_url, json=payload, headers=headers, timeout=10)
 
-        # If initial POST fails because assignee field is restricted on create screen, retry without assignee in POST
+        # If initial POST fails because assignee field is restricted on create screen, retry POST without assignee
         if resp.status_code == 400 and "assignee" in resp.text:
             del payload["fields"]["assignee"]
             if auth:
@@ -253,8 +281,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
         issue_key = resp_data.get("key")
         ticket_link = f"{base_url_clean}/browse/{issue_key}"
 
-        # Step 4: Guarantee assignment via follow-up PUT if assignee wasn't included in POST response
-        # or if initial creation didn't set assignee
+        # Step 5: Guarantee assignment via follow-up PUT call
         if issue_key:
             _assign_issue_via_put(issue_key, target_assignee_account_id, base_url_clean, auth, headers)
 
@@ -262,7 +289,7 @@ def create_jira_ticket(item: ActionItem) -> ExecutionResult:
             "status": "success",
             "link": ticket_link,
             "tool": "jira",
-            "error": None,
+            "error": warning_msg,  # Contains warning if default assignee fallback occurred
             "resolved_owner": target_assignee_account_id,
         }
     except Exception as e:
