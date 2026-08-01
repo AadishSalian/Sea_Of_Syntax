@@ -19,17 +19,26 @@ st.set_page_config(page_title="MeetingToMotion", page_icon="🧭", layout="wide"
 st.markdown("""
 <style>
     /* Import modern typography */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
     
     /* Base typography */
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Outfit', sans-serif;
     }
     
-    /* Dark mode background with slight gradient */
+    /* Dynamic Animated Mesh Background */
     .stApp {
-        background: linear-gradient(135deg, #0b0f19 0%, #1a1f35 100%);
+        background: linear-gradient(-45deg, #0f172a, #1e1b4b, #020617, #312e81);
+        background-size: 400% 400%;
+        animation: gradientMesh 15s ease infinite;
         color: #ffffff;
+    }
+    
+    @keyframes gradientMesh {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
     
     /* Headings */
@@ -38,71 +47,108 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
     
-    /* Premium Title styling */
+    /* Premium Animated Title styling */
     h1 {
-        background: -webkit-linear-gradient(45deg, #4ade80, #3b82f6);
+        background: -webkit-linear-gradient(45deg, #10b981, #3b82f6, #8b5cf6, #ec4899);
+        background-size: 300%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        animation: textGradient 6s linear infinite;
         font-weight: 700 !important;
+        text-align: center;
+        margin-bottom: 2rem !important;
     }
     
-    /* Card containers */
+    @keyframes textGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* True Glassmorphic Card containers */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"] {
-        background: rgba(30, 41, 59, 0.5) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 12px !important;
-        padding: 16px !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-        backdrop-filter: blur(10px);
+        background: rgba(17, 24, 39, 0.4) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
     }
     
-    /* Card hover effects */
+    /* Card hover effects with ambient glow */
     [data-testid="stVerticalBlock"] > [style*="flex-direction: column;"] > [data-testid="stVerticalBlock"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        border-color: rgba(59, 130, 246, 0.5) !important;
+        transform: translateY(-4px) scale(1.01);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.2);
+        border-color: rgba(99, 102, 241, 0.4) !important;
     }
     
-    /* Primary button (Run Pipeline) */
+    /* Primary button (Run Pipeline) with pulsing glow */
     .stButton > button[kind="primary"] {
-        background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%) !important;
+        background: linear-gradient(135deg, #4f46e5 0%, #d946ef 100%) !important;
         color: white !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1.5rem !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 2rem !important;
         font-weight: 600 !important;
-        transition: opacity 0.2s ease, transform 0.1s ease;
+        font-size: 1.1rem !important;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+        width: 100%;
     }
     
     .stButton > button[kind="primary"]:hover {
-        opacity: 0.9;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(217, 70, 239, 0.5), 0 0 15px rgba(79, 70, 229, 0.4);
+        filter: brightness(1.1);
+    }
+    
+    .stButton > button[kind="primary"]:active {
+        transform: translateY(1px);
     }
     
     /* Metrics styling */
     [data-testid="stMetricValue"] {
-        font-size: 2.5rem !important;
-        background: -webkit-linear-gradient(45deg, #a78bfa, #f472b6);
+        font-size: 3rem !important;
+        font-weight: 700 !important;
+        background: -webkit-linear-gradient(45deg, #a78bfa, #f472b6, #fb923c);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        animation: textGradient 8s linear infinite;
+        background-size: 300%;
     }
     
-    /* Text input area */
+    /* Text input area - Glassmorphic */
     .stTextArea textarea {
-        background-color: rgba(15, 23, 42, 0.6) !important;
+        background-color: rgba(15, 23, 42, 0.4) !important;
+        backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
         color: #f8fafc !important;
-        border-radius: 8px !important;
-        font-family: 'Inter', monospace;
+        border-radius: 12px !important;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.95rem;
+        padding: 1rem;
+        transition: all 0.2s ease;
     }
     .stTextArea textarea:focus {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 1px #3b82f6 !important;
+        border-color: #8b5cf6 !important;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3), 0 0 20px rgba(139, 92, 246, 0.1) !important;
+        background-color: rgba(15, 23, 42, 0.6) !important;
     }
     
     /* Dividers */
     hr {
-        border-color: rgba(255, 255, 255, 0.1) !important;
+        border-color: rgba(255, 255, 255, 0.05) !important;
+        margin: 2rem 0 !important;
+    }
+    
+    /* Text rendering tweaks for crispness */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 </style>
 """, unsafe_allow_html=True)
