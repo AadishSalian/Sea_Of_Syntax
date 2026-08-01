@@ -13,7 +13,7 @@ import os
 import json
 import re
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from dotenv import load_dotenv
 from schemas import ActionItem
@@ -119,16 +119,37 @@ def _load_memory() -> Dict[str, Any]:
     return {}
 
 
-def _call_llm(transcript_text: str) -> str:
+def _call_llm(transcript_text: str) -> Tuple[str, str]:
     """
-    Directly invokes available LLM APIs (Gemini with multi-model fallback or Groq).
+    Directly invokes available LLM APIs (Groq primary with llama-3.3-70b-versatile, Gemini secondary).
 
     Args:
         transcript_text: The raw transcript text to process.
 
     Returns:
-        Raw string output from the LLM.
+        Tuple of (raw_json_string_response, extraction_method_name)
     """
+    # Primary: Groq API with llama-3.3-70b-versatile
+    if GROQ_API_KEY:
+        try:
+            from groq import Groq
+            client = Groq(api_key=GROQ_API_KEY)
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Transcript:\n{transcript_text}"}
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            content = completion.choices[0].message.content or "[]"
+            if content and content.strip():
+                return content, "Groq (llama-3.3-70b-versatile)"
+        except Exception as groq_err:
+            logger.warning(f"Groq API call failed: {groq_err}. Trying Gemini fallback...")
+
+    # Secondary: Gemini API fallback
     if GEMINI_API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
@@ -143,31 +164,19 @@ def _call_llm(transcript_text: str) -> str:
                     generation_config={"response_mime_type": "application/json"}
                 )
                 if response and response.text:
-                    return response.text
+                    return response.text, f"Gemini ({model_name})"
             except Exception as err:
                 last_err = err
                 logger.debug(f"Gemini model '{model_name}' call failed: {err}")
                 continue
                 
-        raise last_err or ValueError("All Gemini model generation attempts failed.")
+        if last_err:
+            logger.warning(f"Gemini API attempts failed: {last_err}")
 
-    elif GROQ_API_KEY:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        completion = client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
-            messages=[
-                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Transcript:\n{transcript_text}"}
-            ],
-            temperature=0.1,
-        )
-        return completion.choices[0].message.content or "[]"
-    else:
-        raise ValueError("Neither GEMINI_API_KEY nor GROQ_API_KEY is configured in environment.")
+    raise ValueError("Neither Groq nor Gemini LLM API calls succeeded.")
 
 
-def extract_action_items(text: str) -> List[Dict[str, Any]]:
+def extract_action_items(text: str) -> Tuple[List[Dict[str, Any]], str]:
     """
     Calls the LLM API to extract action items as a list of raw dictionaries.
     Includes automated single-retry recovery and JSON cleaning.
@@ -176,7 +185,7 @@ def extract_action_items(text: str) -> List[Dict[str, Any]]:
         text: Meeting transcript string.
 
     Returns:
-        A list of un-normalized action item dictionaries.
+        Tuple of (list_of_unnormalized_action_item_dicts, extraction_method_name).
 
     Raises:
         ValueError: If API keys are missing or extraction fails after retries.
@@ -186,7 +195,7 @@ def extract_action_items(text: str) -> List[Dict[str, Any]]:
 
     for attempt in range(1, max_attempts + 1):
         try:
-            raw_response = _call_llm(text)
+            raw_response, method_name = _call_llm(text)
             cleaned = _clean_json_string(raw_response)
             parsed = json.loads(cleaned)
 
@@ -194,9 +203,14 @@ def extract_action_items(text: str) -> List[Dict[str, Any]]:
                 parsed = parsed["action_items"]
 
             if isinstance(parsed, list):
-                return parsed
+                return parsed, method_name
+            elif isinstance(parsed, dict):
+                for k, v in parsed.items():
+                    if isinstance(v, list):
+                        return v, method_name
+                return [parsed], method_name
             else:
-                raise ValueError(f"LLM output is not a JSON list (got {type(parsed).__name__})")
+                raise ValueError(f"LLM output is not a JSON list/dict (got {type(parsed).__name__})")
 
         except Exception as err:
             last_error = err
@@ -457,10 +471,15 @@ def process_transcript(text: str) -> List[ActionItem]:
         return []
 
     items: List[Dict[str, Any]] = []
+    extraction_method = "rule-based fallback"
 
     try:
-        items = extract_action_items(text)
+        items, extraction_method = extract_action_items(text)
+        print(f"[extractor] Extraction Method Used: {extraction_method}")
+        logger.info(f"Extraction Method Used: {extraction_method}")
     except Exception as err:
+        extraction_method = "rule-based fallback"
+        print(f"[extractor] Extraction Method Used: {extraction_method}")
         logger.info(f"LLM extraction unavailable ({err}); using rule-based fallback")
         try:
             items = _fallback_extract(text)
