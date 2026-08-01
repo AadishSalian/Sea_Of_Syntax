@@ -11,7 +11,8 @@ HOUR 6+ : swap each placeholder import for the real teammate function as they an
           readiness. Only the import lines and mock-call lines need to change.
 """
 
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
+from langgraph.graph import StateGraph, START, END
 
 from schemas import ActionItem, ExecutionResult
 from mocks import ALL_MOCK_ITEMS
@@ -54,7 +55,6 @@ def ask_clarification(item: ActionItem) -> ExecutionResult:
 
 # ---------------------------------------------------------------------------
 
-
 class PipelineResult(TypedDict):
     item: ActionItem
     result: ExecutionResult
@@ -74,40 +74,93 @@ def _execute_item(item: ActionItem) -> ExecutionResult:
                 "error": f"unknown tool_type: {item['tool_type']}", "resolved_owner": None}
 
 
+# --- LANGGRAPH IMPLEMENTATION ---
+
+class ItemState(TypedDict):
+    item: ActionItem
+    result: Optional[ExecutionResult]
+    was_clarified: bool
+
+def classify_node(state: ItemState):
+    """Classify the item to determine if it is ambiguous (already done in extraction for now)."""
+    return {"item": state["item"]}  # Return existing state instead of {}
+
+def route_after_classify(state: ItemState):
+    """Routing logic: if ambiguous, route to clarify, else execute."""
+    if state["item"].get("ambiguous"):
+        return "clarify"
+    return "execute"
+
+def clarify_node(state: ItemState):
+    """Ask a human for clarification."""
+    item = dict(state["item"])  # copy to avoid mutating original reference directly
+    clarification = ask_clarification(item)
+    
+    if clarification["status"] == "success" and clarification["resolved_owner"]:
+        item["owner"] = clarification["resolved_owner"]
+        item["ambiguous"] = False
+        return {"item": item, "was_clarified": True}
+    else:
+        # If clarification failed, record the error result
+        return {"result": clarification, "was_clarified": True}
+
+def execute_node(state: ItemState):
+    """Execute the task by creating the appropriate ticket, draft, or page."""
+    if state.get("result"): 
+        # If we already have a result (e.g. clarification failed), skip execution
+        return {"result": state["result"]}
+    
+    exec_result = _execute_item(state["item"])
+    return {"result": exec_result}
+
+# Build the Item Processing Graph
+builder = StateGraph(ItemState)
+builder.add_node("classify", classify_node)
+builder.add_node("clarify", clarify_node)
+builder.add_node("execute", execute_node)
+
+builder.add_edge(START, "classify")
+builder.add_conditional_edges(
+    "classify",
+    route_after_classify,
+    {"clarify": "clarify", "execute": "execute"}
+)
+# Route back into execute after clarification completes
+builder.add_edge("clarify", "execute")
+builder.add_edge("execute", END)
+
+item_graph = builder.compile()
+
 def run_pipeline(transcript_text: str) -> List[PipelineResult]:
     """
-    THE MAIN LOOP: ingest -> extract -> classify(already done in extractor) ->
-    route -> execute -> clarify (conditional) -> report
+    THE MAIN LOOP: ingest -> extract -> classify -> route -> execute -> clarify -> report
     """
+    # INGEST & EXTRACT
     items = process_transcript(transcript_text)
+    
     results: List[PipelineResult] = []
 
     for item in items:
-        was_clarified = bool(item.get("ambiguous"))
+        # Process each item through the StateGraph
+        initial_state = {"item": item, "result": None, "was_clarified": False}
+        final_state = item_graph.invoke(initial_state)
+        
+        results.append({
+            "item": final_state["item"],
+            "result": final_state["result"],
+            "was_clarified": final_state["was_clarified"]
+        })
 
-        if was_clarified:
-            clarification = ask_clarification(item)
-            if clarification["status"] == "success" and clarification["resolved_owner"]:
-                item = dict(item)  # copy
-                item["owner"] = clarification["resolved_owner"]
-                item["ambiguous"] = False
-                exec_result = _execute_item(item)  # type: ignore
-            else:
-                exec_result = clarification  # propagate the failure/timeout
-        else:
-            exec_result = _execute_item(item)
-
-        results.append({"item": item, "result": exec_result, "was_clarified": was_clarified})
-
+    # REPORT is handled by returning results for downstream summary
     return results
 
 
 def summarize(results: List[PipelineResult]) -> dict:
     """Builds the completion summary shown at the end of the demo."""
     total = len(results)
-    tools_touched = {r["result"]["tool"] for r in results}
+    tools_touched = {r["result"]["tool"] for r in results if r.get("result")}
     clarifications = sum(1 for r in results if r["was_clarified"])
-    succeeded = sum(1 for r in results if r["result"]["status"] == "success")
+    succeeded = sum(1 for r in results if r.get("result") and r["result"]["status"] == "success")
 
     return {
         "total_action_items": total,
@@ -126,7 +179,10 @@ if __name__ == "__main__":
 
     print("\n--- RESULTS ---")
     for r in pipeline_results:
-        print(f"{r['item']['task'][:50]:50} -> {r['result']['status']} ({r['result']['link']})")
+        task_preview = r['item']['task'][:50]
+        status = r['result']['status'] if r.get('result') else 'unknown'
+        link = r['result']['link'] if r.get('result') else 'None'
+        print(f"{task_preview:50} -> {status} ({link})")
 
     print("\n--- SUMMARY ---")
     print(summarize(pipeline_results))
