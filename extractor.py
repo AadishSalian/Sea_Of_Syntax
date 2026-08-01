@@ -112,52 +112,65 @@ def _load_memory() -> Dict[str, Any]:
     return {}
 
 
-def _call_llm(transcript_text: str) -> str:
+def _call_llm(user_text: str, system_prompt: str = EXTRACTION_SYSTEM_PROMPT, json_mode: bool = True) -> str:
     """
     Directly invokes available LLM APIs (Gemini with multi-model fallback or Groq).
-
-    Args:
-        transcript_text: The raw transcript text to process.
-
-    Returns:
-        Raw string output from the LLM.
     """
+    last_err: Optional[Exception] = None
+
     if GEMINI_API_KEY:
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
         
-        last_err: Optional[Exception] = None
         for model_name in GEMINI_MODEL_NAMES:
             try:
                 model = genai.GenerativeModel(model_name)
-                prompt = f"{EXTRACTION_SYSTEM_PROMPT}\n\nTranscript:\n{transcript_text}"
-                response = model.generate_content(
-                    prompt,
-                    generation_config={"response_mime_type": "application/json"}
-                )
+                if system_prompt == EXTRACTION_SYSTEM_PROMPT:
+                    prompt = f"{system_prompt}\n\nTranscript:\n{user_text}"
+                else:
+                    prompt = f"{system_prompt}\n\n{user_text}"
+                    
+                gen_config = {"response_mime_type": "application/json"} if json_mode else {}
+                response = model.generate_content(prompt, generation_config=gen_config)
                 if response and response.text:
                     return response.text
             except Exception as err:
                 last_err = err
                 logger.debug(f"Gemini model '{model_name}' call failed: {err}")
                 continue
-                
-        raise last_err or ValueError("All Gemini model generation attempts failed.")
 
-    elif GROQ_API_KEY:
-        from groq import Groq
-        client = Groq(api_key=GROQ_API_KEY)
-        completion = client.chat.completions.create(
-            model="llama-3.1-70b-versatile",
-            messages=[
-                {"role": "system", "content": EXTRACTION_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Transcript:\n{transcript_text}"}
-            ],
-            temperature=0.1,
-        )
-        return completion.choices[0].message.content or "[]"
-    else:
-        raise ValueError("Neither GEMINI_API_KEY nor GROQ_API_KEY is configured in environment.")
+    if GROQ_API_KEY:
+        import requests
+        try:
+            user_content = f"Transcript:\n{user_text}" if system_prompt == EXTRACTION_SYSTEM_PROMPT else user_text
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                "temperature": 0.1
+            }
+            if json_mode:
+                # Groq will output an array since the prompt asks for it
+                pass
+                
+            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", json=payload, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                content = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+                return content or ("{}" if json_mode else "")
+            else:
+                last_err = ValueError(f"Groq API Error {resp.status_code}: {resp.text}")
+                logger.debug(str(last_err))
+        except Exception as err:
+            last_err = err
+            logger.debug(f"Groq call failed: {err}")
+            
+    raise last_err or ValueError("Both Gemini and Groq API calls failed, or keys missing.")
 
 
 def extract_action_items(text: str) -> List[Dict[str, Any]]:
@@ -394,6 +407,42 @@ def process_transcript(text: str) -> List[ActionItem]:
     except Exception as rule_err:
         logger.error(f"Failed to apply ambiguity rules: {rule_err}")
         return []
+
+
+def ai_resolve_ambiguity(item: Dict[str, Any]) -> Optional[str]:
+    """
+    Attempts to logically deduce the correct owner using the LLM.
+    Returns the exact matching owner from TEAM_ROSTER, or None if truly ambiguous.
+    """
+    system_prompt = (
+        "You are an AI resolving ambiguous task assignments.\n"
+        f"Available Team Roster: {', '.join(TEAM_ROSTER)}\n\n"
+        "Analyze the provided task and context. Determine which specific team member "
+        "is most likely responsible. "
+        "Output ONLY the exact name from the Team Roster (e.g., 'Aman_Frontend'). "
+        "If it's impossible to deduce confidently based on the context provided, "
+        "output exactly 'UNRESOLVABLE'."
+    )
+    
+    user_prompt = (
+        f"Task: {item.get('task')}\n"
+        f"Raw Context: {item.get('raw_context')}\n"
+        f"Current Ambiguous Owner: {item.get('owner')}"
+    )
+    
+    try:
+        response = _call_llm(user_text=user_prompt, system_prompt=system_prompt, json_mode=False)
+        resolved = response.strip()
+        
+        if resolved in TEAM_ROSTER:
+            logger.info(f"AI resolved ambiguity: {item.get('owner')} -> {resolved}")
+            return resolved
+        else:
+            logger.info(f"AI could not resolve ambiguity for {item.get('owner')} (LLM said: {resolved})")
+            return None
+    except Exception as e:
+        logger.warning(f"AI resolution failed: {e}")
+        return None
 
 
 def run_extractor_tests() -> bool:

@@ -20,7 +20,7 @@ from mocks import ALL_MOCK_ITEMS
 # ---------------------------------------------------------------------------
 # REAL TEAMMATE FUNCTIONS WIRED IN PIPELINE
 # ---------------------------------------------------------------------------
-from extractor import process_transcript
+from extractor import process_transcript, ai_resolve_ambiguity
 from jira_notion import create_jira_ticket, update_notion_page
 from gmail_slack import create_email_draft, ask_clarification
 
@@ -66,8 +66,17 @@ def route_after_classify(state: ItemState):
     return "execute"
 
 def clarify_node(state: ItemState):
-    """Ask a human for clarification."""
+    """Attempt AI resolution, falling back to human clarification."""
     item = dict(state["item"])  # copy to avoid mutating original reference directly
+    
+    # 1. Attempt AI Resolution first
+    ai_resolved = ai_resolve_ambiguity(item)
+    if ai_resolved:
+        item["owner"] = ai_resolved
+        item["ambiguous"] = False
+        return {"item": item, "was_clarified": True}
+        
+    # 2. Fallback to Slack human clarification
     clarification = ask_clarification(item)
     
     if clarification["status"] == "success" and clarification["resolved_owner"]:
