@@ -1,0 +1,20 @@
+# Shared
+python-dotenv==1.0.1
+
+# Person 1 — Extraction
+google-generativeai==0.8.3
+groq==0.11.0
+
+# Person 2 — Jira + Notion
+requests==2.32.3
+notion-client==2.2.1
+
+# Person 3 — Gmail + Slack
+google-api-python-client==2.149.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+slack_sdk==3.33.3
+
+# Person 4 — Orchestrator + Dashboard
+langgraph==0.2.45
+streamlit==1.39.0

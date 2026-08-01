@@ -1,0 +1,4 @@
+Sarah will update the landing-page mockups by Friday.
+Ravi should send the client the recap of today's call.
+Let's document that we decided to use the v3 API.
+Can someone assign the analytics task to Alex? Actually, which Alex — marketing or eng?
