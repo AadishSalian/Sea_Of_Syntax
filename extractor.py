@@ -35,11 +35,10 @@ TEAM_ROSTER = ["Sarah_Design", "Sarah_Sales", "Alex_Marketing", "Alex_Eng", "Rav
 
 # Available Gemini model names to try in order
 GEMINI_MODEL_NAMES = [
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-flash-latest",
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash"
+    "gemini-2.5-flash",
+    "gemini-1.5-flash-latest"
 ]
 
 EXTRACTION_SYSTEM_PROMPT = """You are an expert AI assistant that extracts action items from meeting transcripts.

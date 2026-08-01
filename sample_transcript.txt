@@ -1,5 +1,97 @@
-Neha will prepare the presentation slides before Monday.
-Vikram should email the revised project timeline to the client.
-Let's document that we're switching to OAuth 2.0 authentication.
-The production server returned a 500 Internal Server Error after the latest deployment.
-Can someone review the React UI pull request from Aman?
+Hardik: Good morning, everyone! We have a busy week ahead, so let's go over the sprint tasks before tomorrow's client review.
+
+Amish: Morning! I finished the authentication module yesterday. The login and signup flows are working locally, and I've pushed the latest changes to the development branch.
+
+Aadish: Nice! I completed the dashboard UI and the analytics overview page. I still need the backend APIs before I can finish the charts.
+
+Hardik: Great progress from both of you. Amish, your first task is to integrate the authentication system with the dashboard and verify that role-based access works for Admin, Manager, and Employee accounts.
+
+Amish: Sure. I'll also write unit tests for the authentication middleware once the integration is complete.
+
+Hardik: Perfect. Aadish, I want you to continue with the reports section and make sure it's responsive across desktop, tablet, and mobile devices.
+
+Aadish: Sounds good. Should I use the existing chart library or try the new one we discussed last week?
+
+Hardik: Stick with the existing library for now. We don't want to introduce unnecessary risks before the release.
+
+Amish: I also noticed that password reset emails are taking almost 15 seconds to send. I'll investigate whether it's the SMTP configuration.
+
+Hardik: Please do. If it's a configuration issue, document the fix so the deployment team can apply it to production.
+
+Aadish: I have another question. Should the reports page allow exporting data as Excel and PDF?
+
+Hardik: Yes, both formats are required. Excel is the priority, while PDF can be added after the client demo.
+
+Amish: I'll expose the export APIs once the backend integration is complete.
+
+Aadish: Great. I'll keep the export buttons disabled until the APIs are ready.
+
+Hardik: Excellent. Also, someone needs to update the project documentation after today's meeting.
+
+Amish: I can handle the API documentation.
+
+Aadish: I'll update the frontend setup guide and screenshots.
+
+Hardik: Perfect. I'll review both before merging them into the main documentation.
+
+Amish: By the way, I found a bug in the notification service. Sometimes duplicate notifications are sent when a user logs in from multiple devices.
+
+Hardik: Is it blocking the release?
+
+Amish: No, but it's definitely something we should fix before production.
+
+Hardik: Create a bug ticket and assign it a medium priority.
+
+Aadish: I noticed another issue. The analytics cards don't update automatically after new data is added unless the page is refreshed.
+
+Hardik: Can that be solved using polling or WebSockets?
+
+Aadish: Polling would be much easier for this release.
+
+Hardik: Go with polling every 30 seconds. We can optimize it later.
+
+Amish: I'll make sure the backend endpoints support that efficiently.
+
+Hardik: Good idea.
+
+Aadish: I also think we should add loading skeletons while the dashboard data is being fetched.
+
+Hardik: Agreed. That will improve the user experience.
+
+Amish: I just pulled the latest changes from Git, and I ran into a merge conflict in the authentication routes.
+
+Hardik: Were the conflicts only in your branch?
+
+Amish: Yes. I can resolve them, but it'll take around 20 minutes.
+
+Hardik: That's fine. Don't merge until you've tested everything locally.
+
+Aadish: I have a question about the client meeting. Should I prepare a short demo of the analytics dashboard?
+
+Hardik: Yes. Show the dashboard, reports page, responsive layout, and export functionality if it's ready.
+
+Amish: I'll prepare a demo account with sample data so the client doesn't see empty dashboards.
+
+Hardik: Good thinking.
+
+Aadish: We also discussed using the new v3 API during the last meeting. Are we moving forward with that?
+
+Hardik: Yes. Let's officially document that the project will use the v3 API for all new integrations. Existing endpoints can remain on v2 until they're migrated.
+
+Amish: I'll update the backend configuration accordingly.
+
+Aadish: I'll note that decision in the meeting minutes.
+
+Hardik: Thanks. One more thing—the QA team will start testing tomorrow morning. Make sure all critical features are merged before 6 PM today.
+
+Amish: Understood. I'll prioritize authentication, password reset, and export APIs.
+
+Aadish: I'll finish the reports page, responsive fixes, and loading skeletons before the end of the day.
+
+Hardik: Excellent. We'll have another stand-up at 5:30 PM to review progress and resolve any blockers before deployment.
+
+Amish: Sounds like a plan.
+
+Aadish: Looking forward to showing the client a polished build tomorrow.
+
+Hardik: Great work, team. Let's get started.
