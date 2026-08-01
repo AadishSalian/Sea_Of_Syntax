@@ -1,5 +1,6 @@
 import React from 'react';
-import { Users, CheckCircle2, RefreshCw, Clock, TrendingUp, Timer } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Activity, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const StatsGrid = ({ items = [] }) => {
   const total = items.length;
@@ -7,41 +8,61 @@ const StatsGrid = ({ items = [] }) => {
   const inProgress = items.filter(row => row.result && row.result.status !== 'success' && row.result.status !== 'failed').length;
   const failed = items.filter(row => row.result?.status === 'failed').length;
   const pending = total - (completed + inProgress + failed);
+  const needsClarification = failed;
   
-  const avgConfidence = total > 0 
-    ? (items.reduce((acc, row) => acc + (row.item?.confidence || 0), 0) / total).toFixed(2)
-    : "0.00";
-
   const stats = [
-    { label: "Total Action Items", value: total.toString(), icon: Users, subtext: "Extracted", color: "text-purple-400", bg: "bg-purple-500/10" },
-    { label: "Completed", value: completed.toString(), icon: CheckCircle2, subtext: "Success", color: "text-green-500", bg: "bg-green-500/10" },
-    { label: "In Progress", value: inProgress.toString(), icon: RefreshCw, subtext: "Working", color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Pending", value: pending.toString(), icon: Clock, subtext: "Queued", color: "text-yellow-500", bg: "bg-yellow-500/10" },
-    { label: "Avg Confidence", value: avgConfidence, icon: TrendingUp, subtext: "Score", color: "text-indigo-400", bg: "bg-indigo-500/10" },
-    { label: "Failed", value: failed.toString(), icon: Timer, subtext: "Errors", color: "text-red-400", bg: "bg-red-500/10" },
+    { label: 'Total Items', value: total, icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Completed', value: completed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Pending / Actionable', value: pending, icon: Clock, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Needs Clarification', value: needsClarification, icon: AlertCircle, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   ];
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemAnim = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      {stats.map((stat, i) => {
+    <motion.div 
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+    >
+      {stats.map((stat, idx) => {
         const Icon = stat.icon;
         return (
-          <div key={i} className="bg-card rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-colors flex flex-col justify-between h-32">
-            <div className="flex items-start justify-between">
-              <span className="text-xs font-semibold text-gray-400 max-w-[80%] leading-tight">{stat.label}</span>
-              <div className={`w-7 h-7 rounded-lg ${stat.bg} ${stat.color} flex items-center justify-center shrink-0`}>
-                <Icon size={14} />
+          <motion.div 
+            key={idx} 
+            variants={itemAnim}
+            className="glass-panel rounded-2xl p-6 group hover:border-purple-500/30 transition-colors"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className={`p-3 rounded-xl ${stat.bg} shadow-inner-light`}>
+                <Icon size={20} className={stat.color} />
+              </div>
+              <div className="w-16 h-8 opacity-30 flex items-end gap-1">
+                {[40, 70, 30, 85, 50, 90].map((h, i) => (
+                  <div key={i} className={`w-1.5 rounded-t-sm ${stat.bg.replace('10', '40')}`} style={{ height: `${h}%` }} />
+                ))}
               </div>
             </div>
-            
-            <div>
-              <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-[10px] text-gray-500 font-medium">{stat.subtext}</div>
-            </div>
-          </div>
+            <h3 className="text-3xl font-bold text-white tracking-tight mb-1">{stat.value}</h3>
+            <p className="text-sm font-medium text-gray-400">{stat.label}</p>
+          </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 };
 

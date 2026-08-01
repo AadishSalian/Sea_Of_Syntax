@@ -7,13 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: "#0a0a0f",
-        card: "#13131a",
-        cardLight: "#16161f",
+        background: "#05050A",
+        card: "rgba(255, 255, 255, 0.03)",
+        cardLight: "rgba(255, 255, 255, 0.06)",
+        cardBorder: "rgba(255, 255, 255, 0.08)",
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
       },
+      boxShadow: {
+        'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
+        'inner-light': 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+      }
     },
   },
   plugins: [],

@@ -3,7 +3,7 @@ import { Globe, Moon, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 const Header = () => {
   return (
-    <header className="flex items-center justify-between px-8 py-5 border-b border-white/5 bg-card/50 backdrop-blur-md sticky top-0 z-20">
+    <header className="flex items-center justify-between px-8 py-5 glass-panel rounded-3xl sticky top-0 z-20">
       <div>
         <h2 className="text-2xl font-bold text-white mb-1 tracking-tight">Dashboard</h2>
         <p className="text-sm text-gray-400 font-medium">AI Meeting Assistant that turns conversations into actions</p>

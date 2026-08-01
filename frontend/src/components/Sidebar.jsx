@@ -1,89 +1,72 @@
 import React from 'react';
-import { 
-  LayoutDashboard, FileText, Cpu, CheckSquare, 
-  KanbanSquare, Mail, BookOpen, MessageSquare, 
-  Database, History, BarChart2, FileTerminal, 
-  Settings 
-} from 'lucide-react';
+import { Home, Calendar, BarChart2, CheckSquare, Video, Settings, ChevronLeft, User, Plus } from 'lucide-react';
 
-const Sidebar = ({ activeTab, onTabChange }) => {
-
+const Sidebar = ({ activeTab, setActiveTab }) => {
   const navItems = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'Transcript', icon: FileText },
-    { name: 'AI Processing', icon: Cpu },
-    { name: 'Action Items', icon: CheckSquare },
-    { name: 'Jira', icon: KanbanSquare },
-    { name: 'Gmail', icon: Mail },
-    { name: 'Notion', icon: BookOpen },
-    { name: 'Slack Clarifications', icon: MessageSquare },
-    { name: 'Memory', icon: Database },
-    { name: 'Execution History', icon: History },
-    { name: 'Analytics', icon: BarChart2 },
-    { name: 'Logs', icon: FileTerminal },
-    { name: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'meetings', label: 'Meetings', icon: Calendar },
+    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+    { id: 'actions', label: 'Actions', icon: CheckSquare },
+    { id: 'recordings', label: 'Recordings', icon: Video },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <aside className="w-[230px] h-screen bg-cardLight border-r border-white/10 flex flex-col justify-between p-4 flex-shrink-0">
+    <aside className="w-[260px] h-full flex flex-col justify-between p-6 bg-transparent border-r border-white/[0.02] relative z-10 shrink-0 overflow-y-auto custom-scrollbar">
       <div>
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-violet-600 to-purple-500 transform rotate-45 flex items-center justify-center shrink-0">
-            <div className="w-3 h-3 bg-white transform -rotate-45" />
-          </div>
-          <h1 className="text-lg font-bold tracking-tight">
-            <span className="text-white">MeetingTo</span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-purple-400">Motion</span>
-          </h1>
+        {/* Logo Area */}
+        <div className="flex items-center justify-between mb-10 pl-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+          <button className="text-gray-500 hover:text-gray-300">
+            <ChevronLeft size={20} />
+          </button>
         </div>
 
-        <nav className="flex flex-col gap-1">
+        {/* Navigation */}
+        <nav className="flex flex-col gap-2">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            
             return (
               <button
-                key={item.name}
-                onClick={() => onTabChange(item.name)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
-                  activeTab === item.name 
-                    ? 'bg-gradient-to-r from-violet-600/20 to-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(124,58,237,0.15)] border border-purple-500/30' 
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent'
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-white/[0.05] text-white shadow-inner-light' 
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.02]'
                 }`}
               >
-                <Icon size={18} className={activeTab === item.name ? "text-purple-400" : "text-gray-400"} />
-                <span className="truncate">{item.name}</span>
+                <div className="flex items-center gap-4">
+                  <Icon size={18} className={isActive ? 'text-purple-400' : ''} />
+                  <span className="font-medium text-sm tracking-wide">{item.label}</span>
+                </div>
+                {isActive && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
+                )}
               </button>
-            )
+            );
           })}
         </nav>
       </div>
 
-      <div className="mt-4 p-4 rounded-xl bg-background border border-white/5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 blur-xl rounded-full" />
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-gray-300">Processing Engine</span>
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
+      {/* Bottom Profile Area */}
+      <div>
+        <div className="flex items-center gap-3 px-2 mb-6">
+          <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-gray-400">
+            <User size={20} />
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-sm font-semibold text-white">Current User</span>
+            <span className="text-xs text-gray-500">Workspace Member</span>
           </div>
         </div>
-        
-        <div className="h-8 flex items-end gap-1 opacity-70 mb-3">
-          {/* Empty state for processing bars */}
-          {[0, 0, 0, 0, 0, 0, 0, 0].map((h, i) => (
-            <div key={i} className="w-1.5 bg-gradient-to-t from-purple-600 to-violet-400 rounded-t-sm" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-        
-        <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium">
-          <span>AI Engine Active</span>
-          <span className="px-1.5 py-0.5 rounded-md bg-white/5 flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            v1.0.0
-          </span>
-        </div>
+
+        <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all">
+          New Meeting
+          <Plus size={16} />
+        </button>
       </div>
     </aside>
   );
