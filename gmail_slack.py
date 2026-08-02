@@ -14,6 +14,7 @@ import base64
 import os
 import pickle
 import time
+import urllib.parse
 from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
@@ -78,7 +79,7 @@ def create_email_draft(item: dict) -> dict:
     if not os.path.exists(creds_path) and not os.path.exists("token.pickle"):
         task_title = item.get("task", "Action Item")
         owner_name = item.get("owner", "Team Member")
-        encoded_subject = requests.utils.quote(f"Follow-up: {task_title}")
+        encoded_subject = urllib.parse.quote(f"Follow-up: {task_title}")
         demo_link = f"https://mail.google.com/mail/u/0/#drafts?subject={encoded_subject}"
         return {
             "status": "success",
