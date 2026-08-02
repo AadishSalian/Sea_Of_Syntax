@@ -99,12 +99,12 @@ def create_email_draft(item: dict) -> dict:
         message["subject"] = subject
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-        draft = service.users().drafts().create(
+        sent_message = service.users().messages().send(
             userId="me",
-            body={"message": {"raw": raw}}
+            body={"raw": raw}
         ).execute()
 
-        link = f"https://mail.google.com/mail/#drafts?compose={draft['message']['id']}"
+        link = f"https://mail.google.com/mail/#sent/{sent_message['id']}"
         return {"status": "success", "link": link, "tool": "gmail",
                 "error": None, "resolved_owner": None}
 

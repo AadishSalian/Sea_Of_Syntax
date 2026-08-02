@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Edit2, Trash2, List, Filter, MoreHorizontal } from 'lucide-react';
+import { Eye, Edit2, Trash2, List, Filter, MoreHorizontal, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ActionItemsTable = ({ items = [] }) => {
@@ -90,7 +90,19 @@ const ActionItemsTable = ({ items = [] }) => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-3 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Eye size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
+                      {item.link ? (
+                        <a 
+                          href={item.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 hover:text-blue-400 cursor-pointer transition-colors"
+                          title="Open in tool"
+                        >
+                          <ExternalLink size={16} />
+                        </a>
+                      ) : (
+                        <Eye size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
+                      )}
                       <Edit2 size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
                       <Trash2 size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
                     </div>
