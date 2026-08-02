@@ -43,17 +43,31 @@ _clarification_cache = {}
 # ---------- GMAIL ----------
 def get_gmail_service():
     creds = None
+    creds_path = os.getenv("GMAIL_CREDENTIALS_PATH", "credentials.json")
+
     if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as f:
-            creds = pickle.load(f)
+        try:
+            with open("token.pickle", "rb") as f:
+                creds = pickle.load(f)
+        except Exception:
+            creds = None
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", GMAIL_SCOPES)
+            if not os.path.exists(creds_path):
+                raise FileNotFoundError(
+                    f"Gmail credentials file '{creds_path}' not found in root directory. "
+                    f"Please place your Google OAuth Client Secrets JSON file as '{creds_path}' "
+                    f"or set GMAIL_CREDENTIALS_PATH in your .env file."
+                )
+            flow = InstalledAppFlow.from_client_secrets_file(creds_path, GMAIL_SCOPES)
             creds = flow.run_local_server(port=0)
+
         with open("token.pickle", "wb") as f:
             pickle.dump(creds, f)
+
     return build("gmail", "v1", credentials=creds)
 
 
