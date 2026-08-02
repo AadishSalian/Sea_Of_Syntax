@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Edit2, Trash2 } from 'lucide-react';
+import { Eye, Edit2, Trash2, List, Filter, MoreHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ActionItemsTable = ({ items = [] }) => {
@@ -15,34 +15,34 @@ const ActionItemsTable = ({ items = [] }) => {
   };
 
   return (
-    <div className="glass-panel w-full rounded-2xl overflow-hidden mb-6 relative border-t border-t-purple-500/30">
-      <div className="p-5 flex items-center justify-between border-b border-white/[0.05]">
-        <h2 className="text-lg font-bold text-white tracking-wide">Action Items & Insights</h2>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 text-xs font-semibold text-gray-300 border border-white/20 rounded-lg hover:bg-white/5 transition-colors">
-            ↓ Export Report
+    <div className="w-full bg-[#18181b] border border-zinc-800 rounded-xl overflow-hidden shrink-0 mt-8">
+      <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center bg-[#18181b]">
+        <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2">
+          <List size={20} className="text-zinc-400" />
+          Extracted Action Items
+        </h2>
+        <div className="flex gap-2">
+          <button className="p-1.5 hover:bg-zinc-800 rounded-md text-zinc-400 transition-colors">
+            <Filter size={16} />
           </button>
-          <button className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.4)]">
-            Assign All Tasks
-          </button>
-          <button className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-purple-500 to-violet-500 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.4)]">
-            Mark All
+          <button className="p-1.5 hover:bg-zinc-800 rounded-md text-zinc-400 transition-colors">
+            <MoreHorizontal size={16} />
           </button>
         </div>
       </div>
-      
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b border-white/[0.05] text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-            <th className="px-6 py-4 w-[20%]">Owner</th>
-            <th className="px-6 py-4 w-[30%]">Action Item</th>
-            <th className="px-6 py-4 w-[10%]">Deadline</th>
-            <th className="px-6 py-4 w-[10%]">Priority</th>
-            <th className="px-6 py-4 w-[10%]">Source</th>
-            <th className="px-6 py-4 w-[10%]">Status</th>
-            <th className="px-6 py-4 w-[10%] text-right">Actions</th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-zinc-800 bg-[#09090b]">
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Owner</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Action Item</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Deadline</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Priority</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Source</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider text-right">Actions</th>
+            </tr>
+          </thead>
         <tbody>
           <AnimatePresence>
             {displayItems.length === 0 ? (
@@ -51,7 +51,7 @@ const ActionItemsTable = ({ items = [] }) => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <td colSpan="7" className="py-12 text-center text-gray-500 font-medium bg-white/[0.01]">
+                <td colSpan="7" className="py-12 text-center text-zinc-500 font-medium bg-[#18181b]">
                   No action items extracted yet. Run the pipeline to populate.
                 </td>
               </motion.tr>
@@ -62,37 +62,37 @@ const ActionItemsTable = ({ items = [] }) => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1, duration: 0.3 }}
-                  className="border-b border-white/[0.02] hover:bg-white/[0.02] transition-colors group"
+                  className="border-b border-zinc-800 hover:bg-zinc-800/30 transition-colors group"
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-600/30 to-purple-600/30 flex items-center justify-center border border-purple-500/20 text-purple-300 font-semibold text-xs shadow-inner-light">
+                      <div className="w-7 h-7 rounded-md bg-zinc-800 flex items-center justify-center border border-zinc-700 text-zinc-300 font-semibold text-xs">
                         {item.owner ? item.owner.charAt(0).toUpperCase() : '?'}
                       </div>
-                      <span className="text-sm text-gray-200 group-hover:text-purple-300 transition-colors">{item.owner || "Unassigned"}</span>
+                      <span className="text-sm text-zinc-200 group-hover:text-blue-400 transition-colors">{item.owner || "Unassigned"}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-300 font-medium">{item.task}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{item.deadline || "TBD"}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-300 font-medium">{item.task}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">{item.deadline || "TBD"}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-[11px] border font-medium ${getPriorityStyle(item.priority || 'Medium')}`}>
                       {item.priority || 'Medium'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 capitalize">{item.tool_type || "email"}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-400 capitalize">{item.tool_type || "email"}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-300 capitalize">{item.status || "Pending"}</span>
+                      <span className="text-sm text-zinc-300 capitalize">{item.status || "Pending"}</span>
                       <div className={`w-8 h-4 rounded-full relative transition-colors ${item.status === 'completed' ? 'bg-purple-500' : 'bg-gray-600'}`}>
                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.status === 'completed' ? 'right-0.5' : 'left-0.5'}`} />
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-3 text-gray-500">
-                      <Eye size={16} className="hover:text-gray-300 cursor-pointer transition-colors" />
-                      <Edit2 size={16} className="hover:text-gray-300 cursor-pointer transition-colors" />
-                      <Trash2 size={16} className="hover:text-gray-300 cursor-pointer transition-colors" />
+                    <div className="flex justify-end gap-3 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Eye size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
+                      <Edit2 size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
+                      <Trash2 size={16} className="hover:text-zinc-300 cursor-pointer transition-colors" />
                     </div>
                   </td>
                 </motion.tr>
@@ -101,6 +101,7 @@ const ActionItemsTable = ({ items = [] }) => {
           </AnimatePresence>
         </tbody>
       </table>
+      </div>
     </div>
   );
 };

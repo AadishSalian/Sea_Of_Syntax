@@ -4,26 +4,26 @@ import { Home, Calendar, BarChart2, CheckSquare, Video, Settings, ChevronLeft, U
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'meetings', label: 'Meetings', icon: Calendar },
-    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-    { id: 'actions', label: 'Actions', icon: CheckSquare },
-    { id: 'recordings', label: 'Recordings', icon: Video },
-    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <aside className="w-[260px] h-full flex flex-col justify-between p-6 bg-transparent border-r border-white/[0.02] relative z-10 shrink-0 overflow-y-auto custom-scrollbar">
+    <aside className="w-[260px] h-full flex flex-col justify-between p-6 bg-[#09090b] border-r border-zinc-800 relative z-10 shrink-0 overflow-y-auto custom-scrollbar">
       <div>
         {/* Logo Area */}
-        <div className="flex items-center justify-between mb-10 pl-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
-          <button className="text-gray-500 hover:text-gray-300">
+        <div className="flex items-center justify-between mb-10 pl-2 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-white flex items-center justify-center">
+               <span className="text-black font-bold text-lg leading-none">M</span>
+            </div>
+            <span className="text-xl font-bold text-zinc-100 tracking-tight">MeetingToMotion</span>
+          </div>
+          <button className="text-zinc-500 hover:text-zinc-300 transition-colors">
             <ChevronLeft size={20} />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -32,19 +32,16 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-300 ${
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-md transition-all duration-200 ${
                   isActive 
-                    ? 'bg-white/[0.05] text-white shadow-inner-light' 
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.02]'
+                    ? 'bg-zinc-800/50 text-zinc-100' 
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
                 }`}
               >
-                <div className="flex items-center gap-4">
-                  <Icon size={18} className={isActive ? 'text-purple-400' : ''} />
-                  <span className="font-medium text-sm tracking-wide">{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <Icon size={16} className={isActive ? 'text-zinc-100' : 'text-zinc-400'} />
+                  <span className="font-medium text-sm">{item.label}</span>
                 </div>
-                {isActive && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
-                )}
               </button>
             );
           })}
@@ -54,16 +51,16 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
       {/* Bottom Profile Area */}
       <div>
         <div className="flex items-center gap-3 px-2 mb-6">
-          <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-gray-400">
-            <User size={20} />
+          <div className="w-8 h-8 rounded-full border border-zinc-700 bg-zinc-800 flex items-center justify-center text-zinc-400">
+            <User size={16} />
           </div>
           <div className="flex flex-col text-left">
-            <span className="text-sm font-semibold text-white">Current User</span>
-            <span className="text-xs text-gray-500">Workspace Member</span>
+            <span className="text-sm font-semibold text-zinc-200">Current User</span>
+            <span className="text-xs text-zinc-500">Workspace Member</span>
           </div>
         </div>
 
-        <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] transition-all">
+        <button className="w-full py-2.5 rounded-md bg-white text-black font-semibold text-sm flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors">
           New Meeting
           <Plus size={16} />
         </button>

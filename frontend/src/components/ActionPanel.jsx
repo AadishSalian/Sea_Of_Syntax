@@ -88,9 +88,9 @@ const ActionPanel = ({ onStartProcessing, isProcessing, pastedText, setPastedTex
   };
 
   return (
-    <div className="glass-panel h-full rounded-2xl p-6 flex flex-col relative overflow-hidden">
+    <div className="w-full h-full bg-[#18181b] border border-zinc-800 rounded-xl p-6 flex flex-col relative overflow-hidden">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white tracking-wide">Meeting Transcript</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">Meeting Transcript</h2>
         <div className="flex gap-2">
           {isRecording && (
             <div className="flex items-center gap-2 text-xs font-semibold text-red-400 bg-red-400/10 px-3 py-1.5 rounded-lg border border-red-400/20 animate-pulse">
@@ -107,17 +107,17 @@ const ActionPanel = ({ onStartProcessing, isProcessing, pastedText, setPastedTex
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white transition-all flex items-center"
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white transition-all flex items-center"
           >
             <Upload size={14} className="mr-1.5" />
             Upload
           </button>
           <button 
             onClick={toggleRecording}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md border transition-all flex items-center ${
               isRecording 
-                ? 'bg-white/10 text-white border-white/20' 
-                : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:text-white'
+                ? 'bg-zinc-700 text-white border-zinc-600' 
+                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white'
             }`}
           >
             {isRecording ? <Square size={14} className="mr-1.5" /> : <Mic size={14} className="mr-1.5" />}
@@ -126,7 +126,7 @@ const ActionPanel = ({ onStartProcessing, isProcessing, pastedText, setPastedTex
           <button 
             onClick={handleStartProcessing}
             disabled={isProcessing}
-            className="px-4 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg hover:shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all border border-purple-400/30 disabled:opacity-50 flex items-center"
+            className="px-4 py-1.5 text-xs font-semibold text-black bg-white rounded-md hover:bg-zinc-200 transition-colors border border-transparent disabled:opacity-50 flex items-center"
           >
             {isProcessing ? (
                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1.5" />
@@ -136,12 +136,12 @@ const ActionPanel = ({ onStartProcessing, isProcessing, pastedText, setPastedTex
         </div>
       </div>
       
-      <div className="flex-1 border border-white/[0.05] rounded-xl overflow-hidden bg-[#05050A]/50 focus-within:border-purple-500/30 transition-colors shadow-inner-light">
+      <div className="flex-1 border border-zinc-800 rounded-md overflow-hidden bg-[#09090b] focus-within:border-zinc-500 transition-colors">
         <textarea 
           value={pastedText}
           onChange={(e) => setPastedText(e.target.value)}
           placeholder="Paste text, upload a .txt file, or use Live Mic to begin..."
-          className="w-full h-full bg-transparent p-5 text-[13px] text-gray-300 placeholder:text-gray-600 resize-none focus:outline-none custom-scrollbar leading-relaxed"
+          className="w-full h-full bg-transparent p-5 text-sm text-zinc-300 placeholder:text-zinc-600 resize-none focus:outline-none custom-scrollbar leading-relaxed"
         />
       </div>
     </div>

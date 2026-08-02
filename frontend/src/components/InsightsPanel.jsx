@@ -4,10 +4,10 @@ const InsightsPanel = ({ insights }) => {
   const hasInsights = insights && (insights.talkingPoints || insights.sentiment || insights.summaries);
 
   return (
-    <div className="glass-panel h-full rounded-2xl p-6 flex flex-col relative overflow-hidden">
+    <div className="w-full h-full bg-[#18181b] border border-zinc-800 rounded-xl p-6 flex flex-col relative overflow-hidden shrink-0">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white tracking-wide">AI Insights</h2>
-        <button className="px-3 py-1.5 text-xs font-semibold text-white bg-white/10 rounded-lg hover:bg-white/20 transition-colors border border-white/20">
+        <h2 className="text-lg font-semibold text-zinc-100">AI Insights</h2>
+        <button className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-zinc-800 rounded-md hover:bg-zinc-700 transition-colors border border-zinc-700">
           AI insights
         </button>
       </div>
@@ -15,7 +15,7 @@ const InsightsPanel = ({ insights }) => {
       <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 pr-2">
         {!hasInsights ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-gray-500 font-medium">No insights generated yet.</p>
+            <p className="text-sm text-zinc-500 font-medium">No insights generated yet.</p>
           </div>
         ) : (
           <>
