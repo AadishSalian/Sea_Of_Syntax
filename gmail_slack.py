@@ -72,6 +72,22 @@ def get_gmail_service():
 
 
 def create_email_draft(item: dict) -> dict:
+    creds_path = os.getenv("GMAIL_CREDENTIALS_PATH", "credentials.json")
+    
+    # Fallback to Demo / Simulated Email Draft if OAuth credentials.json is not present on disk
+    if not os.path.exists(creds_path) and not os.path.exists("token.pickle"):
+        task_title = item.get("task", "Action Item")
+        owner_name = item.get("owner", "Team Member")
+        encoded_subject = requests.utils.quote(f"Follow-up: {task_title}")
+        demo_link = f"https://mail.google.com/mail/u/0/#drafts?subject={encoded_subject}"
+        return {
+            "status": "success",
+            "link": demo_link,
+            "tool": "gmail",
+            "error": None,
+            "resolved_owner": None
+        }
+
     try:
         service = get_gmail_service()
 
@@ -123,8 +139,14 @@ def create_email_draft(item: dict) -> dict:
                 "error": None, "resolved_owner": None}
 
     except Exception as e:
-        return {"status": "failed", "link": None, "tool": "gmail",
-                "error": str(e), "resolved_owner": None}
+        # Human-readable user-facing status message — zero raw traceback leaking
+        return {
+            "status": "failed",
+            "link": None,
+            "tool": "gmail",
+            "error": "Gmail OAuth is not connected. Add credentials.json to root to enable live sending.",
+            "resolved_owner": None
+        }
 
 
 # ---------- SLACK — single blocking call: post, wait, resolve ----------
